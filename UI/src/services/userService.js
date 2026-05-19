@@ -1,8 +1,9 @@
 import apiCall from './api';
 
 const userService = {
-  getAllUsers: async () => {
-    return apiCall('/users');
+  getAllUsers: async (universityId) => {
+    const url = `/users${universityId ? `?universityId=${universityId}` : ''}`;
+    return apiCall(url);
   },
 
   getUserById: async (userId) => {

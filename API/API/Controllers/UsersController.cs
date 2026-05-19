@@ -20,11 +20,18 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers([FromQuery] int? universityId = null)
         {
             try
             {
-                var users = await _context.Users
+                var query = _context.Users.AsQueryable();
+
+                if (universityId.HasValue && universityId.Value > 0)
+                {
+                    query = query.Where(u => u.UniversityId == universityId.Value);
+                }
+
+                var users = await query
                     .Include(u => u.University)
                     .Include(u => u.Department)
                     .OrderBy(u => u.Name)

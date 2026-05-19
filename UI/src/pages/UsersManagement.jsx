@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Camera, X, CheckCircle } from 'lucide-react';
 import userService from '../services/userService';
 import universityService from '../services/universityService';
 import departmentService from '../services/departmentService';
 
 export default function UsersManagement() {
+  const [searchParams] = useSearchParams();
+  const userType = localStorage.getItem('userType');
+  const userUniversityId = localStorage.getItem('universityId');
+  const universityIdFromUrl = searchParams.get('universityId');
+  const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityIdFromUrl;
+
   const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -33,18 +40,21 @@ export default function UsersManagement() {
   useEffect(() => {
     fetchUsers();
     fetchUniversities();
-  }, []);
+  }, [activeUniversityId]);
 
   useEffect(() => {
-    if (formData.universityId) {
-      fetchDepartments(formData.universityId);
+    const uniId = formData.universityId || activeUniversityId;
+    if (uniId) {
+      fetchDepartments(uniId);
+    } else {
+      setDepartments([]);
     }
-  }, [formData.universityId]);
+  }, [formData.universityId, activeUniversityId]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data = await userService.getAllUsers();
+      const data = await userService.getAllUsers(activeUniversityId);
       setUsers(data);
     } catch (err) {
       setError('Failed to fetch users');
@@ -118,7 +128,7 @@ export default function UsersManagement() {
         email: formData.email,
         password: formData.password,
         userType: formData.userType,
-        universityId: formData.universityId ? parseInt(formData.universityId, 10) : null,
+        universityId: (formData.universityId || activeUniversityId) ? parseInt(formData.universityId || activeUniversityId, 10) : null,
         departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null,
         phone: formData.phone,
         address: formData.address,
@@ -337,9 +347,10 @@ export default function UsersManagement() {
                     University
                   </label>
                   <select
-                    value={formData.universityId}
+                    value={formData.universityId || activeUniversityId || ''}
+                    disabled={!!activeUniversityId}
                     onChange={(e) => setFormData({ ...formData, universityId: e.target.value, departmentId: '' })}
-                    className="w-full bg-white border border-gray-300 text-gray-900 px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full bg-white border border-gray-300 text-gray-900 px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Select University</option>
                     {universities.map((uni) => (
