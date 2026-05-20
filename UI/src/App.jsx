@@ -17,6 +17,7 @@ import SubjectManagement from './pages/SubjectManagement';
 import SessionProjectManagement from './pages/SessionProjectManagement';
 import PapersManagement from './pages/PapersManagement';
 import UsersManagement from './pages/UsersManagement';
+import RoleManagement from './pages/RoleManagement';
 
 function App() {
   // Set default admin token for testing (remove in production)
@@ -82,6 +83,10 @@ function App() {
               <Route 
                 path="/admin/users" 
                 element={<UsersManagement />} 
+              />
+              <Route 
+                path="/admin/role-management" 
+                element={<RoleManagement />} 
               />
             </Route>
           )}

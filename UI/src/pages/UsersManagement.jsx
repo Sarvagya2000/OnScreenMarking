@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, X, CheckCircle } from 'lucide-react';
+import { Camera, X, CheckCircle, Shield } from 'lucide-react';
 import userService from '../services/userService';
 import universityService from '../services/universityService';
 import departmentService from '../services/departmentService';
+import AssignRoleModal from '../components/RoleManagement/AssignRoleModal';
 
 export default function UsersManagement() {
   const [users, setUsers] = useState([]);
@@ -15,6 +16,8 @@ export default function UsersManagement() {
   const [success, setSuccess] = useState('');
   const [videoStream, setVideoStream] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
+  const [selectedUserForRole, setSelectedUserForRole] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -166,6 +169,30 @@ export default function UsersManagement() {
     setShowForm(false);
     setError('');
     stopCamera();
+  };
+
+  const handleAssignRole = async (roleId) => {
+    try {
+      setLoading(true);
+      // Update user with new role
+      await userService.updateUser(selectedUserForRole.id, {
+        ...selectedUserForRole,
+        roleId: roleId
+      });
+      setSuccess('Role assigned successfully');
+      setShowAssignRoleModal(false);
+      setSelectedUserForRole(null);
+      fetchUsers();
+    } catch (err) {
+      setError(err.message || 'Failed to assign role');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openAssignRoleModal = (user) => {
+    setSelectedUserForRole(user);
+    setShowAssignRoleModal(true);
   };
 
   return (
@@ -441,8 +468,10 @@ export default function UsersManagement() {
                     <th className="px-6 py-3 text-left text-gray-700 font-semibold">Name</th>
                     <th className="px-6 py-3 text-left text-gray-700 font-semibold">Email</th>
                     <th className="px-6 py-3 text-left text-gray-700 font-semibold">Type</th>
+                    <th className="px-6 py-3 text-left text-gray-700 font-semibold">Role</th>
                     <th className="px-6 py-3 text-left text-gray-700 font-semibold">University</th>
                     <th className="px-6 py-3 text-left text-gray-700 font-semibold">Status</th>
+                    <th className="px-6 py-3 text-left text-gray-700 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -451,6 +480,15 @@ export default function UsersManagement() {
                       <td className="px-6 py-4 text-gray-900">{user.name}</td>
                       <td className="px-6 py-4 text-gray-600">{user.email}</td>
                       <td className="px-6 py-4 text-gray-600 capitalize">{user.userType}</td>
+                      <td className="px-6 py-4">
+                        {user.role ? (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                            {user.role.roleName}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No role assigned</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-gray-600">{user.university?.universityName || '-'}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -461,6 +499,15 @@ export default function UsersManagement() {
                           {user.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => openAssignRoleModal(user)}
+                          className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition text-sm font-semibold"
+                        >
+                          <Shield size={16} />
+                          Assign Role
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -469,6 +516,18 @@ export default function UsersManagement() {
           </div>
         )}
       </div>
+
+      {/* Assign Role Modal */}
+      {showAssignRoleModal && selectedUserForRole && (
+        <AssignRoleModal
+          user={selectedUserForRole}
+          onClose={() => {
+            setShowAssignRoleModal(false);
+            setSelectedUserForRole(null);
+          }}
+          onSubmit={handleAssignRole}
+        />
+      )}
     </div>
   );
 }
