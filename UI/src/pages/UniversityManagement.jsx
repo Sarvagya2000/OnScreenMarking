@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, CheckCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import universityService from '../services/universityService';
 
 export default function UniversityManagement() {

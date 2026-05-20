@@ -13,9 +13,11 @@ import {
   Activity,
   AlertCircle
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import apiCall from '../services/api';
 
 export default function CoordinatorDashboard() {
+  const { universityId } = useAuth();
   const [university, setUniversity] = useState(null);
   const [stats, setStats] = useState({
     departments: 0,

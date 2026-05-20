@@ -19,14 +19,14 @@ import {
   Search,
   Sparkles
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import userService from "../services/userService";
 import universityService from "../services/universityService";
 import departmentService from "../services/departmentService";
 
 export default function UsersManagement() {
   const [searchParams] = useSearchParams();
-  const userType = localStorage.getItem("userType");
-  const userUniversityId = localStorage.getItem("universityId");
+  const { userType, universityId: userUniversityId } = useAuth();
   const universityIdFromUrl = searchParams.get("universityId");
   const activeUniversityId =
     userType === "coordinator" ? userUniversityId : universityIdFromUrl;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, BookOpen, AlertCircle, Loader } from 'lucide-react';
-import authService from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -9,6 +9,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,15 +17,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const data = await authService.login(email, password);
-
-      // Store token and user info
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('userType', data.user.userType);
-      localStorage.setItem('userName', data.user.name);
-      localStorage.setItem('userId', data.user.id);
-      localStorage.setItem('userEmail', data.user.email);
-      localStorage.setItem('profileImage', data.user.profileImage || '');
+      const data = await login(email, password);
 
       // Route based on userType
       if (data.user.userType === 'admin') {
@@ -47,7 +40,7 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">     
             <BookOpen className="text-white" size={32} />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">OSM Portal</h1>
@@ -86,7 +79,7 @@ const Login = () => {
                 type="password"
                 required
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
@@ -113,8 +106,8 @@ const Login = () => {
         <div className="mt-6 pt-6 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-600 mb-2">
             Are you an Examiner?{' '}
-            <span 
-              onClick={() => navigate('/register')} 
+            <span
+              onClick={() => navigate('/register')}
               className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition-all hover:underline"
             >
               Register Here
