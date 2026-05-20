@@ -17,6 +17,7 @@ import SubjectManagement from './pages/SubjectManagement';
 import SessionProjectManagement from './pages/SessionProjectManagement';
 import PapersManagement from './pages/PapersManagement';
 import UsersManagement from './pages/UsersManagement';
+import RoleManagement from './pages/RoleManagement';
 import Register from './pages/Register';
 import AcceptInvitation from './pages/AcceptInvitation';
 
@@ -86,6 +87,10 @@ function App() {
               <Route 
                 path="/admin/users" 
                 element={<UsersManagement />} 
+              />
+              <Route 
+                path="/admin/role-management" 
+                element={<RoleManagement />} 
               />
             </Route>
           )}
