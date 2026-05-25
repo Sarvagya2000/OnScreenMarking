@@ -14,6 +14,7 @@ import {
   Users,
   BookOpen
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import apiCall from "../services/api";
 import { decryptId } from "../utils/encryption";
 import subjectService from "../services/subjectService";

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { X, Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import subjectService from '../services/subjectService';
 import departmentService from '../services/departmentService';
 
@@ -8,8 +9,7 @@ export default function SubjectManagement() {
   const [searchParams] = useSearchParams();
   const departmentId = searchParams.get('departmentId');
   const universityId = searchParams.get('universityId');
-  const userType = localStorage.getItem('userType');
-  const userUniversityId = localStorage.getItem('universityId');
+  const { userType, universityId: userUniversityId } = useAuth();
   const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityId;
 
   const [subjects, setSubjects] = useState([]);

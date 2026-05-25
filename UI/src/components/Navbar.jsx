@@ -1,15 +1,13 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, User, Bell, BookOpen, Settings, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const userName = localStorage.getItem('userName') || 'User';
-  const userType = localStorage.getItem('userType') || 'examiner';
+  const { user, userType, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('userName');
+    logout();
     navigate('/login');
   };
 
@@ -44,8 +42,8 @@ const Navbar = () => {
             <User size={20} className="text-white" />
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-medium text-white">{userName}</p>
-            <p className="text-xs text-blue-100 capitalize">{userType}</p>
+            <p className="text-sm font-medium text-white">{user?.name || 'User'}</p>
+            <p className="text-xs text-blue-100 capitalize">{userType || 'examiner'}</p>
           </div>
           <button 
             onClick={handleLogout}

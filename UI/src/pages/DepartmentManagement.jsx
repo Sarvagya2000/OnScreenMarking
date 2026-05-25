@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import departmentService from '../services/departmentService';
 import universityService from '../services/universityService';
 
 export default function DepartmentManagement() {
   const [searchParams] = useSearchParams();
   const universityId = searchParams.get('universityId');
-
-  const userType = localStorage.getItem('userType');
-  const userUniversityId = localStorage.getItem('universityId');
+  const { userType, universityId: userUniversityId } = useAuth();
 
   // For coordinators, use their university ID; for admins, use URL param
   const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityId;

@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Home, FileText, BarChart3, Settings, Users, BookOpen, PenTool, Layers, School, Building2, Calendar, ClipboardList, Shield, UserCheck } from 'lucide-react';
 
 const Sidebar = () => {
-  const userType = localStorage.getItem('userType');
+  const { userType } = useAuth();
 
   // Admin navigation
   const adminMenuItems = [

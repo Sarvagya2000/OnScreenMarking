@@ -1,0 +1,141 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import apiCall from '../services/api';
+
+const AuthContext = createContext();
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    try {
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      console.error('Failed to parse saved user:', e);
+      return null;
+    }
+  });
+  
+  // Only show loading if we have a token but no user data yet
+  const [loading, setLoading] = useState(() => {
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    return !!token && !savedUser;
+  });
+  
+  const [error, setError] = useState(null);
+
+  // Fetch user data from token on mount or refresh
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchUserData();
+    } else {
+      setLoading(false);
+      localStorage.removeItem('user');
+      setUser(null);
+    }
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      // If we don't have a user, we must show loading
+      if (!user) setLoading(true);
+      
+      const userData = await apiCall('/users/me');
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
+      
+      // Only logout if it's an authentication error (401/403)
+      // If it's a network error (failed to fetch), keep the cached user
+      if (err.message.includes('401') || err.message.includes('403') || err.message.includes('Unauthorized')) {
+        setError('Session expired. Please login again.');
+        logout();
+      } else {
+        setError('Could not refresh user data. Working with cached data.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (email, password) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Use /Auth/login to match authService.js casing if needed, 
+      // but apiCall usually handles whatever the backend expects.
+      const response = await apiCall('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+
+      // Store token and user data
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Set user data
+      setUser(response.user);
+      
+      return response;
+    } catch (err) {
+      setError(err.message || 'Login failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Clear other potential legacy items from authService.js
+    localStorage.removeItem('userType');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('profileImage');
+    localStorage.removeItem('universityId');
+    localStorage.removeItem('departmentId');
+    
+    setUser(null);
+    setError(null);
+  };
+
+  const refreshUser = async () => {
+    await fetchUserData();
+  };
+
+  const value = {
+    user,
+    loading,
+    error,
+    login,
+    logout,
+    refreshUser,
+    isAuthenticated: !!user,
+    userType: user?.userType,
+    userId: user?.id,
+    userName: user?.name,
+    userEmail: user?.email,
+    profileImage: user?.profileImage,
+    universityId: user?.universityId,
+    departmentId: user?.departmentId
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+}

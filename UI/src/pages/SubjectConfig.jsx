@@ -21,6 +21,7 @@ import {
 import { subjectService, sectionService, paperService } from '../services';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import apiCall from '../services/api';
 import { decryptId, encryptId } from '../utils/encryption';
 import { useBreadcrumb } from '../context/BreadcrumbContext';
@@ -29,35 +30,7 @@ export default function SubjectConfig() {
   const [searchParams] = useSearchParams();
   const encryptedProjectId = searchParams.get('projectId');
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
-  
-  const [subjects, setSubjects] = useState([]);
-  const [papers, setPapers] = useState([]);
-  const [sections, setSections] = useState([]);
-  const [projectData, setProjectData] = useState(null);
-  
-  const [selectedUniversity, setSelectedUniversity] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [selectedPaper, setSelectedPaper] = useState(null);
-  const [currentStep, setCurrentStep] = useState(1);
-  
-  const [showSectionForm, setShowSectionForm] = useState(false);
-  const [sectionForm, setSectionForm] = useState({
-    name: '',
-    description: '',
-    startQuestion: 1,
-    endQuestion: 10,
-    totalMarks: 10,
-    maxQuestionsToAttempt: 10,
-  });
-  
-  const [questions, setQuestions] = useState([]);
-  const [showQuestionPreview, setShowQuestionPreview] = useState(false);
-  const [editingSectionId, setEditingSectionId] = useState(null);
-  const [expandedSections, setExpandedSections] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const userType = localStorage.getItem('userType');
+  const { userType } = useAuth();
   const { setBreadcrumb } = useBreadcrumb();
 
   useEffect(() => {

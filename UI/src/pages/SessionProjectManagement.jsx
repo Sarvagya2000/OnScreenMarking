@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Calendar, ClipboardList, Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import apiCall from '../services/api';
 import { encryptId } from '../utils/encryption';
 import { useBreadcrumb } from '../context/BreadcrumbContext';
 
 export default function SessionProjectManagement() {
   const [searchParams] = useSearchParams();
-  const userType = localStorage.getItem('userType');
-  const userUniversityId = localStorage.getItem('universityId');
+  const { userType, universityId: userUniversityId } = useAuth();
   const universityIdFromUrl = searchParams.get('universityId');
   const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityIdFromUrl;
   const { setBreadcrumb } = useBreadcrumb();
