@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using API.Data;
 using API.Models;
+using API.Models.DTOs;
 
 namespace API.Controllers
 {
@@ -38,18 +39,37 @@ namespace API.Controllers
 
         [HttpPost("assign")]
         [Authorize(Roles = "admin,coordinator")]
-        public async Task<IActionResult> AssignExaminer([FromBody] PaperExaminer assignment)
+        public async Task<IActionResult> AssignExaminer([FromBody] PaperExaminerAssignDto assignDto)
         {
             try
             {
+                // Validate that paper and examiner exist
+                var paper = await _context.Papers.FindAsync(assignDto.PaperId);
+                if (paper == null)
+                {
+                    return NotFound(new { success = false, message = "Paper not found" });
+                }
+
+                var examiner = await _context.Users.FindAsync(assignDto.ExaminerId);
+                if (examiner == null)
+                {
+                    return NotFound(new { success = false, message = "Examiner not found" });
+                }
+
                 // Check if already assigned
-                if (await _context.PaperExaminers.AnyAsync(pe => pe.PaperId == assignment.PaperId && pe.ExaminerId == assignment.ExaminerId))
+                if (await _context.PaperExaminers.AnyAsync(pe => pe.PaperId == assignDto.PaperId && pe.ExaminerId == assignDto.ExaminerId))
                 {
                     return BadRequest(new { success = false, message = "Examiner already assigned to this paper" });
                 }
 
-                assignment.AssignedAt = DateTime.UtcNow;
-                assignment.IsActive = true;
+                var assignment = new PaperExaminer
+                {
+                    PaperId = assignDto.PaperId,
+                    ExaminerId = assignDto.ExaminerId,
+                    MaxScriptLimit = assignDto.MaxScriptLimit,
+                    AssignedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
 
                 _context.PaperExaminers.Add(assignment);
                 await _context.SaveChangesAsync();

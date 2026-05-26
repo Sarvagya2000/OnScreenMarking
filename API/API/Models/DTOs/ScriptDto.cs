@@ -3,8 +3,8 @@ namespace API.Models.DTOs
     public class ScriptDto
     {
         public int Id { get; set; }
-        public string ScriptId { get; set; }
-        public string Barcode { get; set; }
+        public string InBuiltBarCode { get; set; }
+        public string GeneratedBarcode { get; set; }
         public int PaperId { get; set; }
         public string CleanPdfUrl { get; set; }
         public string Status { get; set; }

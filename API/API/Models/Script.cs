@@ -10,8 +10,8 @@ namespace API.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public string ScriptId { get; set; }
-        public string Barcode { get; set; }
+        public string InBuiltBarcode { get; set; }
+        public string GeneratedBarcode { get; set; }
         public int PaperId { get; set; }
         public Paper Paper { get; set; }
         public string CleanPdfUrl { get; set; }

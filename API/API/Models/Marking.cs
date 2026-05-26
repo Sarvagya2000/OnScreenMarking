@@ -17,7 +17,6 @@ namespace API.Models
         public int AllocationId { get; set; }
         public Allocation Allocation { get; set; }
         public decimal TotalMarks { get; set; }
-        public decimal MaxMarks { get; set; }
         public decimal Percentage { get; set; }
         public string Remarks { get; set; }
         public string Status { get; set; }

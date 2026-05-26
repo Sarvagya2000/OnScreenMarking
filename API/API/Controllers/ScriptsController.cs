@@ -47,8 +47,8 @@ namespace API.Controllers
                 var scriptDtos = scripts.Select(s => new ScriptDto
                 {
                     Id = s.Id,
-                    ScriptId = s.ScriptId,
-                    Barcode = s.Barcode,
+                    GeneratedBarcode = s.GeneratedBarcode,
+                    InBuiltBarCode = s.InBuiltBarcode,
                     PaperId = s.PaperId,
                     CleanPdfUrl = s.CleanPdfUrl,
                     Status = s.Status,
@@ -87,8 +87,8 @@ namespace API.Controllers
                 var scriptDto = new ScriptDto
                 {
                     Id = script.Id,
-                    ScriptId = script.ScriptId,
-                    Barcode = script.Barcode,
+                    GeneratedBarcode = script.GeneratedBarcode,
+                    InBuiltBarCode = script.InBuiltBarcode,
                     PaperId = script.PaperId,
                     CleanPdfUrl = script.CleanPdfUrl,
                     Status = script.Status,
@@ -119,13 +119,9 @@ namespace API.Controllers
                 if (paper == null)
                     return BadRequest(new { success = false, message = "Paper not found" });
 
-                if (_context.Scripts.Any(s => s.ScriptId == scriptDto.ScriptId))
-                    return BadRequest(new { success = false, message = "Script already exists" });
-
+             
                 var script = new Script
                 {
-                    ScriptId = scriptDto.ScriptId,
-                    Barcode = scriptDto.Barcode,
                     PaperId = scriptDto.PaperId,
                     CleanPdfUrl = scriptDto.CleanPdfUrl,
                     Status = "pending",
@@ -231,8 +227,8 @@ namespace API.Controllers
                 var scriptDtos = scripts.Select(s => new ScriptDto
                 {
                     Id = s.Id,
-                    ScriptId = s.ScriptId,
-                    Barcode = s.Barcode,
+                    GeneratedBarcode = s.GeneratedBarcode,
+                    InBuiltBarCode = s.InBuiltBarcode,
                     PaperId = s.PaperId,
                     CleanPdfUrl = s.CleanPdfUrl,
                     Status = s.Status,
@@ -266,10 +262,10 @@ namespace API.Controllers
                 var scriptDtos = scripts.Select(s => new ScriptDto
                 {
                     Id = s.Id,
-                    ScriptId = s.ScriptId,
-                    Barcode = s.Barcode,
-                    PaperId = s.PaperId,
+                    GeneratedBarcode = s.GeneratedBarcode,
                     CleanPdfUrl = s.CleanPdfUrl,
+                    PaperId = s.PaperId,
+                    InBuiltBarCode = s.InBuiltBarcode,
                     Status = s.Status,
                     IsReEvaluationRequested = s.IsReEvaluationRequested,
                     TotalMarks = s.TotalMarks,
