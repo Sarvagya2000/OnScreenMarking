@@ -48,9 +48,8 @@ namespace API.Controllers
                 {
                     Id = s.Id,
                     ScriptId = s.ScriptId,
-                    Barcode = s.Barcode,
                     PaperId = s.PaperId,
-                    CleanPdfUrl = s.CleanPdfUrl,
+                    PdfId = s.PdfId,
                     Status = s.Status,
                     IsReEvaluationRequested = s.IsReEvaluationRequested,
                     TotalMarks = s.TotalMarks,
@@ -88,9 +87,8 @@ namespace API.Controllers
                 {
                     Id = script.Id,
                     ScriptId = script.ScriptId,
-                    Barcode = script.Barcode,
                     PaperId = script.PaperId,
-                    CleanPdfUrl = script.CleanPdfUrl,
+                    PdfId = script.PdfId,
                     Status = script.Status,
                     IsReEvaluationRequested = script.IsReEvaluationRequested,
                     TotalMarks = script.TotalMarks,
@@ -125,9 +123,8 @@ namespace API.Controllers
                 var script = new Script
                 {
                     ScriptId = scriptDto.ScriptId,
-                    Barcode = scriptDto.Barcode,
                     PaperId = scriptDto.PaperId,
-                    CleanPdfUrl = scriptDto.CleanPdfUrl,
+                    PdfId = scriptDto.PdfId,
                     Status = "pending",
                     MaxMarks = scriptDto.MaxMarks
                 };
@@ -232,9 +229,8 @@ namespace API.Controllers
                 {
                     Id = s.Id,
                     ScriptId = s.ScriptId,
-                    Barcode = s.Barcode,
                     PaperId = s.PaperId,
-                    CleanPdfUrl = s.CleanPdfUrl,
+                    PdfId = s.PdfId,
                     Status = s.Status,
                     IsReEvaluationRequested = s.IsReEvaluationRequested,
                     TotalMarks = s.TotalMarks,
@@ -267,9 +263,8 @@ namespace API.Controllers
                 {
                     Id = s.Id,
                     ScriptId = s.ScriptId,
-                    Barcode = s.Barcode,
                     PaperId = s.PaperId,
-                    CleanPdfUrl = s.CleanPdfUrl,
+                    PdfId = s.PdfId,
                     Status = s.Status,
                     IsReEvaluationRequested = s.IsReEvaluationRequested,
                     TotalMarks = s.TotalMarks,

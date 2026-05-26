@@ -6,7 +6,7 @@ namespace API.Models.DTOs
         public string ScriptId { get; set; }
         public string Barcode { get; set; }
         public int PaperId { get; set; }
-        public string CleanPdfUrl { get; set; }
+        public int PdfId { get; set; }
         public string Status { get; set; }
         public bool IsReEvaluationRequested { get; set; }
         public decimal TotalMarks { get; set; }

@@ -29,7 +29,7 @@ namespace API.Data
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<SubjectPaper> SubjectPapers { get; set; }
         public DbSet<DepartmentSubject> DepartmentSubjects { get; set; }
-       
+       public Pdf_Record Pdf_Records { get; set; }
         public DbSet<Invitation> Invitations { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Attendance> Attendances { get; set; }
@@ -262,7 +262,9 @@ namespace API.Data
                 .WithMany()
                 .HasForeignKey(i => i.DepartmentId)
                 .OnDelete(DeleteBehavior.SetNull);
-
+            modelBuilder.Entity<PaperExaminer>()
+    .HasIndex(pe => new { pe.PaperId, pe.ExaminerId })
+    .IsUnique();
             // Attendance configuration
             modelBuilder.Entity<Attendance>()
                 .HasKey(a => a.AttendanceId);

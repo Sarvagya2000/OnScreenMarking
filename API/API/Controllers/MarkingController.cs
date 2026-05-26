@@ -347,9 +347,8 @@ namespace API.Controllers
                     {
                         id = marking.Script.Id,
                         scriptId = marking.Script.ScriptId,
-                        barcode = marking.Script.Barcode,
                         paperId = marking.Script.PaperId,
-                        cleanPdfUrl = marking.Script.CleanPdfUrl,
+                        cleanPdfUrl = marking.Script.PdfId,
                         status = marking.Script.Status,
                         maxMarks = marking.Script.MaxMarks
                     },

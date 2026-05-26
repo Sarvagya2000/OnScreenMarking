@@ -316,9 +316,8 @@ namespace API.Controllers
                     .GroupBy(ee => ee.ExaminerId)
                     .Select(g => new
                     {
-                        UserId = g.First().Examiner.UserId,
-                        FirstName = g.First().Examiner.FirstName,
-                        LastName = g.First().Examiner.LastName,
+                        UserId = g.First().Examiner.Id,
+                        FirstName = g.First().Examiner.Name,
                         Email = g.First().Examiner.Email,
                         Expertise = g.Select(ee => ee.Subject.SubName).Distinct().ToList(),
                         AllocatedCount = _context.Allocations
@@ -331,7 +330,6 @@ namespace API.Controllers
                 {
                     s.Id,
                     s.ScriptId,
-                    s.Barcode,
                     s.PaperId,
                     s.Status,
                     s.CreatedAt
@@ -348,7 +346,7 @@ namespace API.Controllers
                     {
                         sp.Subject.SubjectId,
                         sp.Subject.SubName,
-                        sp.Subject.SubjectCode
+                        sp.Subject.SubCode
                     }).ToList()
                 };
 
