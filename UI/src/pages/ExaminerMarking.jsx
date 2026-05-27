@@ -11,7 +11,8 @@ import {
   X,
   FileText,
   AlertCircle,
-  ChevronLeft
+  ChevronLeft,
+  Barcode
 } from "lucide-react";
 import PDFAnnotator from "../components/PDFAnnotator";
 import sectionService from "../services/sectionService";
@@ -50,8 +51,7 @@ const ExaminerMarking = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState(null);
-  const [saveStatus, setSaveStatus] = useState(null); // { type: 'success'|'error', msg: string }
-console.log(markingId)
+  const [saveStatus, setSaveStatus] = useState(null); 
   useEffect(() => {
     if (!paperId) {
       setError('No paper selected. Please select a script from the Scripts page.');
@@ -492,13 +492,6 @@ console.log(markingId)
               OSM <span className="text-blue-600">Marking</span>
             </h1>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mt-1">Answer Sheet Evaluation</p>
-          </div>
-          
-          <div className="hidden md:block">
-            <p className="text-xs uppercase font-semibold text-gray-500 mb-1">Student</p>
-            <p className="font-semibold text-sm text-gray-900">
-              {studentName || "Unknown"} <span className="text-gray-400">(Roll: {rollNo || "N/A"})</span>
-            </p>
           </div>
 
           <div className="hidden md:block bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
