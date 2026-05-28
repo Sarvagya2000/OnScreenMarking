@@ -12,13 +12,15 @@ import {
   ChevronLeft,
   Filter,
   Users,
-  BookOpen
+  BookOpen,
+  Layers
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import apiCall from "../services/api";
-import { decryptId } from "../utils/encryption";
+import { useBreadcrumb } from "../context/BreadcrumbContext";
+import { decryptId, encryptId } from "../utils/encryption";
 import subjectService from "../services/subjectService";
 import projectService from "../services/projectService";
+import paperService from "../services/paperService";
 
 export default function PapersManagement() {
   const [searchParams] = useSearchParams();
@@ -26,6 +28,16 @@ export default function PapersManagement() {
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
   const subjectId = searchParams.get("subjectId");
   const universityId = searchParams.get("universityId");
+  const { userType, universityId: userUniversityId } = useAuth();
+  const { setBreadcrumb } = useBreadcrumb();
+  const activeUniversityId = userType === "coordinator" ? userUniversityId : universityId;
+
+  useEffect(() => {
+    const papersPath = userType === 'admin' ? '/admin/papers' : '/papers';
+    setBreadcrumb([
+      { label: 'Paper Management', path: papersPath, icon: 'FileText' }
+    ]);
+  }, [userType]);
 
   const [papers, setPapers] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -61,21 +73,17 @@ export default function PapersManagement() {
 
   useEffect(() => {
     fetchInitialData();
-  }, [subjectId, projectId, universityId]);
+  }, [subjectId, projectId, activeUniversityId]);
 
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const projs = await projectService.getProjects(universityId);
-      setProjects(projs);
+      const projs = await projectService.getProjects(activeUniversityId);
+      setProjects(projs || []);
 
-      const subjectUrl = universityId 
-        ? `/subject/University?universityId=${universityId}`
-        : null;
-      
-      if (subjectUrl) {
-        const subs = await apiCall(subjectUrl);
-        const mappedSubs = subs.map(s => ({ ...s, subjectName: s.subName || s.subjectName || '' }));
+      if (activeUniversityId) {
+        const subs = await subjectService.getSubjectByUniversity(activeUniversityId);
+        const mappedSubs = (subs || []).map(s => ({ ...s, subjectName: s.subName || s.subjectName || '' }));
         setSubjects(mappedSubs);
       } else {
         setSubjects([]);
@@ -91,15 +99,16 @@ export default function PapersManagement() {
 
   const fetchPapers = async () => {
     try {
-      let url = `/papers`;
-      const params = [];
-      if (subjectId) params.push(`subjectId=${subjectId}`);
-      if (projectId) params.push(`projectId=${projectId}`);
-      if (universityId) params.push(`universityId=${universityId}`);
-      if (params.length > 0) url += "?" + params.join("&");
+      let data;
+      if (projectId) {
+        data = await paperService.getPapersByProject(projectId);
+      } else if (subjectId) {
+        data = await paperService.getPapersBySubject(subjectId);
+      } else {
+        data = await paperService.getAllPapers(activeUniversityId);
+      }
 
-      const data = await apiCall(url);
-      const mappedData = data.map(paper => ({
+      const mappedData = (data || []).map(paper => ({
         ...paper,
         subjectPapers: paper.subjectPapers?.map(sp => ({
           ...sp,
@@ -117,10 +126,10 @@ export default function PapersManagement() {
 
   useEffect(() => {
     const loadProjectSubjects = async () => {
-      if (universityId) {
+      if (activeUniversityId) {
         try {
-          const subs = await subjectService.getSubjectByUniversity(universityId);
-          const mappedSubs = subs.map(s => ({ ...s, subjectName: s.subName || s.subjectName || '' }));
+          const subs = await subjectService.getSubjectByUniversity(activeUniversityId);
+          const mappedSubs = (subs || []).map(s => ({ ...s, subjectName: s.subName || s.subjectName || '' }));
           setSubjects(mappedSubs);
         } catch (err) {
           console.error("Failed to fetch subjects for university:", err);
@@ -128,7 +137,7 @@ export default function PapersManagement() {
       }
     };
     loadProjectSubjects();
-  }, [universityId]);
+  }, [activeUniversityId]);
 
   useEffect(() => {
     if (searchParams.get("add") === "true") {
@@ -235,8 +244,6 @@ export default function PapersManagement() {
 
     try {
       const method = editingId ? "PUT" : "POST";
-      const url = editingId ? `/papers/${editingId}` : `/papers`;
-
       const payload = {
         ...formData,
         subjectIds: selectedSubjects.map(id => parseInt(id, 10)),
@@ -246,10 +253,7 @@ export default function PapersManagement() {
         totalQuestions: parseInt(formData.totalQuestions, 10),
       };
 
-      const result = await apiCall(url, {
-        method,
-        body: JSON.stringify(payload)
-      });
+      const result = await paperService.updatePaper(editingId)
 
       handleCancel();
       fetchPapers();
@@ -621,11 +625,11 @@ export default function PapersManagement() {
                           <div>
                             <p className="text-xs text-gray-500 font-semibold mb-1">Subjects:</p>
                             <div className="flex flex-wrap gap-1">
-                              {paper.subjectPapers && paper.subjectPapers.length > 0 ? (
-                                paper.subjectPapers.map((sp) => (
-                                  <span key={sp.id} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-lg">
+                              {paper.subjectIds && paper.subjectIds.length > 0 ? (
+                                paper.subjectNames.map((sp, idx) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-lg">
                                     <BookOpen size={12} />
-                                    {sp.subject?.subjectName}
+                                    {sp}
                                   </span>
                                 ))
                               ) : (
@@ -660,6 +664,15 @@ export default function PapersManagement() {
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Link
+                            to={userType === 'admin' 
+                              ? `/admin/subject-config?projectId=${encryptId(paper.projectId)}&subjectId=${encryptId(paper.subjectIds?.[0] || 0)}&paperId=${encryptId(paper.paperId)}&from=papers`
+                              : `/subject-config?projectId=${encryptId(paper.projectId)}&subjectId=${encryptId(paper.subjectIds?.[0] || 0)}&paperId=${encryptId(paper.paperId)}&from=papers`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 font-bold text-xs transition-colors"
+                          >
+                            <Layers size={14} />
+                            Configure Sections
+                          </Link>
                           <button
                             onClick={() => openAllocationModal(paper)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 font-bold text-xs transition-colors"

@@ -12,9 +12,11 @@ import {
   Loader,
   Zap
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import apiCall from '../services/api';
 import paperService from '../services/paperService';
 import allocationService from '../services/allocationService';
+import sectionService from '../services/sectionService';
 import { decryptId } from '../utils/encryption';
 
 export default function ScriptAllocation() {
@@ -22,6 +24,9 @@ export default function ScriptAllocation() {
   const encryptedProjectId = searchParams.get('projectId');
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
   const sessionId = searchParams.get('sessionId');
+  const { userType, universityId: userUniversityId } = useAuth();
+  const universityIdFromUrl = searchParams.get('universityId');
+  const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityIdFromUrl;
 
   const [papers, setPapers] = useState([]);
   const [selectedPaper, setSelectedPaper] = useState(null);
@@ -42,7 +47,7 @@ export default function ScriptAllocation() {
 
   useEffect(() => {
     fetchInitialData();
-  }, [projectId, sessionId]);
+  }, [projectId, sessionId, activeUniversityId]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -52,7 +57,7 @@ export default function ScriptAllocation() {
       if (projectId) {
         papersData = await paperService.getPapersByProject(projectId);
       } else {
-        papersData = await paperService.getAllPapers();
+        papersData = await paperService.getAllPapers(activeUniversityId);
       }
       setPapers(papersData || []);
     } catch (err) {
@@ -64,10 +69,23 @@ export default function ScriptAllocation() {
   };
 
   const handlePaperSelect = async (paper) => {
+    setError('');
+    setSuccess('');
     setSelectedPaper(paper);
     setPaperInfo(paper);
     setLoading(true);
     try {
+      // First verify if paper sections are configured
+      const sectionsData = await sectionService.getAllSections(paper.paperId);
+      if (!sectionsData || sectionsData.length === 0) {
+        setError(`Warning: Paper "${paper.paperName}" does not have sections or questions configured yet. You must complete the Subject & Paper configuration under "Sessions & Projects" first, otherwise scripts cannot be allocated.`);
+        setSelectedPaper(null);
+        setPaperInfo(null);
+        setScripts([]);
+        setExaminers([]);
+        return;
+      }
+
       // Fetch scripts for this paper
       const scriptsData = await apiCall(`/scripts?paperId=${paper.paperId}`);
       setScripts(scriptsData || []);
