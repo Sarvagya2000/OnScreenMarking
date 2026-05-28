@@ -18,6 +18,7 @@ const Navbar = () => {
         { label: 'Universities', path: '/admin/universities' },
         { label: 'Sessions & Projects', path: '/admin/sessions' },
         { label: 'Users', path: '/admin/users' },
+        { label: 'Roles & Permissions', path: '/admin/role-management' },
         { label: 'Attendance', path: '/admin/attendance' }
       ];
     } else if (userType === 'coordinator') {

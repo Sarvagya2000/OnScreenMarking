@@ -14,7 +14,7 @@ const Sidebar = () => {
     { icon: <Calendar size={20} />, label: 'Sessions & Projects', path: '/admin/sessions' },
     { icon: <FileText size={20} />, label: 'Papers', path: '/admin/papers' },
     { icon: <Users size={20} />, label: 'Users', path: '/admin/users' },
-    { icon: <Shield size={20} />, label: 'Role Management', path: '/admin/role-management' },
+    { icon: <Shield size={20} />, label: 'Roles & Permissions', path: '/admin/role-management' },
     { icon: <UserCheck size={20} />, label: 'Attendance', path: '/admin/attendance' },
     { icon: <Settings size={20} />, label: 'Settings', path: '/settings' },
   ];
