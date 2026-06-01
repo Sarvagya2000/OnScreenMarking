@@ -177,32 +177,7 @@ namespace API.Controllers
             }
         }
 
-        /* [HttpGet("score-distribution")]
-         public async Task<IActionResult> GetScoreDistribution()
-         {
-             try
-             {
-                 var markings = await _context.Markings
-                     .Where(m => m.Status == "submitted")
-                     .ToListAsync();
-
-                 var distribution = new
-                 {
-                     @"90-100" = markings.Count(m => m.Percentage >= 90),
-                     @"80-89" = markings.Count(m => m.Percentage >= 80 && m.Percentage < 90),
-                     @"70-79" = markings.Count(m => m.Percentage >= 70 && m.Percentage < 80),
-                     @"60-69" = markings.Count(m => m.Percentage >= 60 && m.Percentage < 70),
-                     @"below-60" = markings.Count(m => m.Percentage < 60)
-                 };
-
-                 return Ok(new { success = true, data = distribution });
-             }
-             catch (Exception ex)
-             {
-                 return StatusCode(500, new { success = false, message = ex.Message });
-             }
-         }*/
-
+       
         [HttpGet("examiner/{examinerId}")]
         public async Task<IActionResult> GetExaminerReport(int examinerId)
         {

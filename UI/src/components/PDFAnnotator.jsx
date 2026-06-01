@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
-import { Pen, RotateCcw, Copy, Type, Circle, Square, Upload, ZoomIn, ZoomOut, Check, X, Undo, Move } from 'lucide-react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { RotateCcw, Copy, Type, ZoomIn, ZoomOut, Check, X, Undo, Move, Trash2, FileText } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
-const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, maxMarks, sections = [], pdfUrl }) => {
+const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNextQuestion, maxMarks, sections = [], pdfUrl, scriptId, readOnly }, ref) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -23,6 +23,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
   const [currentPage, setCurrentPage] = useState(0);
   const [showTextInput, setShowTextInput] = useState(false);
   const [annotations, setAnnotations] = useState([]);
+  const [selectedAnno, setSelectedAnno] = useState(null);
   const [textInput, setTextInput] = useState('');
   const [textPosition, setTextPosition] = useState({ x: 0, y: 0 });
   const [currentPath, setCurrentPath] = useState([]);
@@ -32,6 +33,144 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
   const [pendingAnno, setPendingAnno] = useState(null);
   const [isSkipped, setIsSkipped] = useState(false);
   const [loadingPdf, setLoadingLoadingPdf] = useState(false);
+
+  // Expose PDF generation and uploading to the parent component
+  useImperativeHandle(ref, () => ({
+    generateEvaluatedPdf: async () => {
+      try {
+        if (pdfPages.length === 0) return "";
+        
+        const { jsPDF } = await import('jspdf');
+        
+        // Setup PDF with identical dimensions
+        const pdf = new jsPDF({
+          orientation: canvasSize.width > canvasSize.height ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [canvasSize.width, canvasSize.height]
+        });
+
+        for (let i = 0; i < pdfPages.length; i++) {
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = canvasSize.width;
+          tempCanvas.height = canvasSize.height;
+          const tempCtx = tempCanvas.getContext('2d');
+          
+          // Clear background
+          tempCtx.fillStyle = '#ffffff';
+          tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+          
+          // Draw clean page image
+          if (pdfPages[i]) {
+            tempCtx.drawImage(pdfPages[i], 0, 0, tempCanvas.width, tempCanvas.height);
+          }
+          
+          // Draw annotations at standard zoom scale of 1
+          annotations
+            .filter(anno => anno.page === undefined || anno.page === i)
+            .forEach(anno => {
+              drawAnnotation(tempCtx, anno, 1);
+            });
+
+          // Draw dynamic evaluation summary at top right of the front page (page index 0)
+          if (i === 0) {
+            drawSummaryStamp(tempCtx, 1);
+          }
+
+          const imgData = tempCanvas.toDataURL('image/jpeg', 0.95);
+          
+          if (i > 0) {
+            pdf.addPage([canvasSize.width, canvasSize.height], canvasSize.width > canvasSize.height ? 'landscape' : 'portrait');
+          }
+          pdf.addImage(imgData, 'JPEG', 0, 0, canvasSize.width, canvasSize.height);
+        }
+
+        const pdfBlob = pdf.output('blob');
+        const formData = new FormData();
+        formData.append('file', pdfBlob, `evaluated_${scriptId}.pdf`);
+
+        const token = localStorage.getItem('token');
+        const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        const uploadResult = await uploadResponse.json();
+        return uploadResult.url || "";
+      } catch (err) {
+        console.error("Failed to generate evaluated PDF:", err);
+        return "";
+      }
+    },
+    syncAnnotations: () => {
+      if (scriptId) {
+        const saved = localStorage.getItem(`annotations_${scriptId}`);
+        if (saved) {
+          try {
+            setAnnotations(JSON.parse(saved));
+          } catch (e) {}
+        }
+      }
+    }
+  }));
+
+  // Helper to fit zoom to container width (Shrink to Fit)
+  const fitZoomToContainer = (pageWidth) => {
+    setTimeout(() => {
+      const container = canvasRef.current?.parentNode;
+      if (container) {
+        const containerWidth = container.clientWidth - 32; // subtract padding
+        if (containerWidth > 0 && pageWidth > 0) {
+          const fitZoom = Math.min(1, containerWidth / pageWidth);
+          setZoom(parseFloat(fitZoom.toFixed(2)));
+        }
+      }
+    }, 150);
+  };
+
+  // Helper to save annotations to storage
+  const saveAnnotationsToStorage = (updatedAnnos) => {
+    if (scriptId) {
+      localStorage.setItem(`annotations_${scriptId}`, JSON.stringify(updatedAnnos));
+    }
+  };
+
+  // Sync annotations from localStorage based on scriptId
+  useEffect(() => {
+    if (scriptId) {
+      const saved = localStorage.getItem(`annotations_${scriptId}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setAnnotations(parsed);
+          onAnnotationsChange?.(parsed);
+        } catch (e) {
+          console.error("Failed to parse annotations from localStorage:", e);
+        }
+      } else {
+        setAnnotations([]);
+        onAnnotationsChange?.([]);
+      }
+      setSelectedAnno(null);
+    }
+  }, [scriptId]);
+
+  // Backspace/Delete key listener for deleting selected annotations
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnno) {
+        const updated = annotations.filter(anno => anno.id !== selectedAnno.id);
+        setAnnotations(updated);
+        saveAnnotationsToStorage(updated);
+        onAnnotationsChange?.(updated);
+        setSelectedAnno(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAnno, annotations]);
 
   // Auto-load PDF from URL
   useEffect(() => {
@@ -74,6 +213,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       setImageSource(null);
       if (pages.length > 0) {
         setCanvasSize({ width: pages[0].width, height: pages[0].height });
+        fitZoomToContainer(pages[0].width);
       }
     } catch (err) {
       console.error("Failed to load PDF:", err);
@@ -92,7 +232,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
   // Redraw everything whenever relevant state changes
   useEffect(() => {
     redrawCanvas();
-  }, [imageSource, zoom, canvasSize, pdfPages, currentPage, annotations, currentPath]);
+  }, [imageSource, zoom, canvasSize, pdfPages, currentPage, annotations, currentPath, selectedAnno]);
 
   const redrawCanvas = () => {
     const canvas = canvasRef.current;
@@ -126,10 +266,21 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       return;
     }
 
-    // Draw all annotations
-    annotations.forEach(anno => {
+    // Draw all annotations for current page
+    annotations.filter(anno => anno.page === undefined || anno.page === currentPage).forEach(anno => {
       drawAnnotation(context, anno);
     });
+
+    // Highlight selected annotation when in move tool
+    if (selectedAnno && tool === 'move' && (selectedAnno.page === undefined || selectedAnno.page === currentPage)) {
+      context.strokeStyle = '#3b82f6';
+      context.lineWidth = 1.5 * zoom;
+      context.setLineDash([5 * zoom, 5 * zoom]);
+      const px = selectedAnno.x !== undefined ? selectedAnno.x * zoom : (selectedAnno.points?.[0]?.x * zoom);
+      const py = selectedAnno.y !== undefined ? selectedAnno.y * zoom : (selectedAnno.points?.[0]?.y * zoom);
+      context.strokeRect(px - 15 * zoom, py - 15 * zoom, 30 * zoom, 30 * zoom);
+      context.setLineDash([]);
+    }
 
     // Draw current path if drawing
     if (currentPath.length > 1) {
@@ -140,68 +291,186 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
         lineWidth: lineWidth
       });
     }
+
+    // Draw dynamic evaluation summary at top right of the front page (page index 0)
+    if (currentPage === 0) {
+      drawSummaryStamp(context, zoom);
+    }
   };
 
-  const drawAnnotation = (ctx, anno) => {
+  const drawSummaryStamp = (ctx, drawZoom) => {
+    // Aggregate section-wise marks from current annotations
+    const secTotals = {};
+    sections.forEach(sec => {
+      secTotals[sec.name] = 0;
+    });
+    
+    annotations.forEach(anno => {
+      if (anno.marks !== undefined && !anno.isSkipped) {
+        const sName = anno.stepName || (sections[0]?.name || '');
+        if (sName) {
+          secTotals[sName] = (secTotals[sName] || 0) + (anno.marks || 0);
+        }
+      }
+    });
+
+    const grandTotal = Object.values(secTotals).reduce((sum, v) => sum + v, 0);
+
+    ctx.save();
+    const boxWidth = 220 * drawZoom;
+    const boxHeight = (40 + (sections.length * 18) + 30) * drawZoom;
+    const boxX = ctx.canvas.width - boxWidth - 30 * drawZoom;
+    const boxY = 30 * drawZoom;
+
+    // Translucent backing
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+    // Double border effect
+    ctx.strokeStyle = '#D32F2F'; // Rich Deep Red
+    ctx.lineWidth = 3 * drawZoom;
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+    
+    ctx.strokeStyle = '#FFCDD2';
+    ctx.lineWidth = 1 * drawZoom;
+    ctx.strokeRect(boxX + 3 * drawZoom, boxY + 3 * drawZoom, boxWidth - 6 * drawZoom, boxHeight - 6 * drawZoom);
+
+    // Header text
+    ctx.fillStyle = '#D32F2F';
+    ctx.font = `bold ${12 * drawZoom}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('ON-SCREEN EVALUATION', boxX + boxWidth / 2, boxY + 20 * drawZoom);
+
+    // Divider line
+    ctx.beginPath();
+    ctx.moveTo(boxX + 15 * drawZoom, boxY + 28 * drawZoom);
+    ctx.lineTo(boxX + boxWidth - 15 * drawZoom, boxY + 28 * drawZoom);
+    ctx.strokeStyle = '#D32F2F';
+    ctx.lineWidth = 1 * drawZoom;
+    ctx.stroke();
+
+    // Draw section totals
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#333333';
+    ctx.font = `${11 * drawZoom}px Arial`;
+    let lineY = boxY + 45 * drawZoom;
+    sections.forEach(sec => {
+      const sTotal = secTotals[sec.name] || 0;
+      ctx.fillText(`${sec.name}:`, boxX + 20 * drawZoom, lineY);
+      ctx.textAlign = 'right';
+      ctx.font = `bold ${11 * drawZoom}px Arial`;
+      ctx.fillText(`${sTotal} Marks`, boxX + boxWidth - 20 * drawZoom, lineY);
+      ctx.textAlign = 'left';
+      ctx.font = `${11 * drawZoom}px Arial`;
+      lineY += 18 * drawZoom;
+    });
+
+    // Divider line for grand total
+    ctx.beginPath();
+    ctx.moveTo(boxX + 15 * drawZoom, lineY - 4 * drawZoom);
+    ctx.lineTo(boxX + boxWidth - 15 * drawZoom, lineY - 4 * drawZoom);
+    ctx.strokeStyle = '#E0E0E0';
+    ctx.stroke();
+
+    // Draw grand total
+    ctx.fillStyle = '#D32F2F';
+    ctx.font = `bold ${13 * drawZoom}px Arial`;
+    ctx.fillText('GRAND TOTAL:', boxX + 20 * drawZoom, lineY + 12 * drawZoom);
+    ctx.textAlign = 'right';
+    ctx.font = `bold ${14 * drawZoom}px Arial`;
+    ctx.fillText(`${grandTotal} Marks`, boxX + boxWidth - 20 * drawZoom, lineY + 12 * drawZoom);
+
+    ctx.restore();
+  };
+
+  const drawAnnotation = (ctx, anno, drawZoom = zoom) => {
     ctx.strokeStyle = anno.color;
     ctx.fillStyle = anno.color;
-    ctx.lineWidth = anno.lineWidth * zoom;
+    ctx.lineWidth = anno.lineWidth * drawZoom;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-
+ 
     switch (anno.type) {
-      case 'pen':
-        if (anno.points.length < 2) return;
-        ctx.beginPath();
-        ctx.moveTo(anno.points[0].x * zoom, anno.points[0].y * zoom);
-        for (let i = 1; i < anno.points.length; i++) {
-          ctx.lineTo(anno.points[i].x * zoom, anno.points[i].y * zoom);
-        }
-        ctx.stroke();
-        break;
-      case 'circle':
-        ctx.beginPath();
-        ctx.arc(anno.x * zoom, anno.y * zoom, (anno.lineWidth * 10) * zoom, 0, 2 * Math.PI);
-        ctx.stroke();
-        break;
-      case 'square':
-        ctx.strokeRect(anno.x * zoom, anno.y * zoom, (anno.lineWidth * 20) * zoom, (anno.lineWidth * 20) * zoom);
-        break;
       case 'tick':
-        drawTick(ctx, anno.x * zoom, anno.y * zoom, (anno.lineWidth * 10) * zoom);
+        drawTick(ctx, anno.x * drawZoom, anno.y * drawZoom, (anno.lineWidth * 10) * drawZoom);
         break;
       case 'cross':
-        drawCross(ctx, anno.x * zoom, anno.y * zoom, (anno.lineWidth * 10) * zoom);
+        drawCross(ctx, anno.x * drawZoom, anno.y * drawZoom, (anno.lineWidth * 10) * drawZoom);
         break;
       case 'text':
-        ctx.font = `${anno.lineWidth * 5 * zoom}px Arial`;
-        ctx.fillText(anno.text, anno.x * zoom, anno.y * zoom);
+        ctx.font = `${anno.lineWidth * 5 * drawZoom}px Arial`;
+        ctx.fillText(anno.text, anno.x * drawZoom, anno.y * drawZoom);
+        break;
+      case 'blank_page':
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 4 * drawZoom;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(ctx.canvas.width, ctx.canvas.height);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.85)';
+        ctx.font = `bold ${32 * drawZoom}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText('BLANK PAGE', ctx.canvas.width / 2, ctx.canvas.height / 2);
         break;
     }
-
+ 
     // Draw question tag if linked
     if (anno.questionId) {
-      ctx.font = `bold ${11 * zoom}px Arial`;
+      ctx.font = `bold ${11 * drawZoom}px Arial`;
       const isCorrect = anno.type === 'tick' || (anno.marks > 0);
-      ctx.fillStyle = isCorrect ? '#008000' : '#FF0000';
+      const isSkipped = anno.isSkipped;
+      
+      const themeColor = isSkipped ? '#FF6B6B' : (isCorrect ? '#008000' : '#FF0000');
+      ctx.fillStyle = themeColor;
       
       const markStr = anno.marks !== undefined ? `(${anno.marks})` : '(?)';
       const qNo = anno.questionId < 10 ? '0' + anno.questionId : anno.questionId;
       const secLabel = anno.stepName ? ` | ${anno.stepName}` : '';
       const label = `${markStr} Q${qNo}${secLabel}`;
-      const px = anno.x ? anno.x * zoom : (anno.points?.[0]?.x * zoom);
-      const py = anno.y ? anno.y * zoom : (anno.points?.[0]?.y * zoom);
+      const px = anno.x ? anno.x * drawZoom : (anno.points?.[0]?.x * drawZoom);
+      const py = anno.y ? anno.y * drawZoom : (anno.points?.[0]?.y * drawZoom);
       
       // Draw a small pill background
       const metrics = ctx.measureText(label);
-      ctx.fillStyle = isCorrect ? 'rgba(0, 128, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)';
+      ctx.fillStyle = isSkipped ? 'rgba(255, 107, 107, 0.1)' : (isCorrect ? 'rgba(0, 128, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)');
       ctx.fillRect(px - 4, py - 20, metrics.width + 8, 16);
-      ctx.strokeStyle = isCorrect ? '#008000' : '#FF0000';
+      ctx.strokeStyle = themeColor;
       ctx.lineWidth = 1;
       ctx.strokeRect(px - 4, py - 20, metrics.width + 8, 16);
       
-      ctx.fillStyle = isCorrect ? '#008000' : '#FF0000';
+      ctx.fillStyle = themeColor;
       ctx.fillText(label, px, py - 8);
+
+      // Draw beautiful circle badge containing marks next to it
+      if (anno.marks !== undefined && (anno.type === 'tick' || anno.type === 'cross')) {
+        ctx.save();
+        const cx = px + 26 * drawZoom;
+        const cy = py - 6 * drawZoom;
+        const radius = 13 * drawZoom;
+        
+        // Draw white backing
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        
+        // Draw circle border
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+        ctx.strokeStyle = themeColor;
+        ctx.lineWidth = 1.8 * drawZoom;
+        ctx.stroke();
+        
+        // Draw centered marks text
+        ctx.font = `bold ${10 * drawZoom}px Arial`;
+        ctx.fillStyle = themeColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(anno.marks), cx, cy);
+        ctx.restore();
+      }
     }
   };
 
@@ -222,59 +491,16 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
     ctx.stroke();
   };
 
-  // Handle image/PDF upload
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    // Check if it's a PDF
-    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const pages = [];
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        await page.render({
-          canvasContext: context,
-          viewport: viewport,
-        }).promise;
-
-        pages.push(canvas);
-      }
-
-      setPdfPages(pages);
-      setCurrentPage(0);
-      setImageSource(null);
-      
-      if (pages.length > 0) {
-        setCanvasSize({ width: pages[0].width, height: pages[0].height });
-      }
+  const startDrawing = (e) => {
+    if (!canvasRef.current || readOnly) return;
+    
+    // Core check: drawing and annotation tools are locked until a question is selected
+    if (!currentQuestionId) {
+      alert("Please select a question from the right panel before you begin marking or annotating!");
       return;
     }
 
-    // Handle image files
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        setImageSource(img);
-        setPdfPages([]);
-        setCanvasSize({ width: img.width, height: img.height });
-      };
-      img.src = event.target?.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const startDrawing = (e) => {
-    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
@@ -282,6 +508,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
     if (tool === 'move') {
       // Find item to drag
       const item = [...annotations].reverse().find(anno => {
+        if (anno.page !== undefined && anno.page !== currentPage) return false;
         if (anno.x !== undefined) {
           const dist = Math.sqrt(Math.pow(anno.x - x, 2) + Math.pow(anno.y - y, 2));
           return dist < 30;
@@ -295,6 +522,9 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       if (item) {
         setIsDragging(true);
         setDraggedItem({ ...item, originalIndex: annotations.indexOf(item), offsetX: (item.x || item.points?.[0]?.x) - x, offsetY: (item.y || item.points?.[0]?.y) - y });
+        setSelectedAnno(item);
+      } else {
+        setSelectedAnno(null);
       }
       return;
     }
@@ -302,6 +532,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
     if (tool === 'text') {
       setTextPosition({ x, y });
       setShowTextInput(true);
+      setTool('move'); // Switch back to select/move mode immediately
       return;
     }
 
@@ -309,13 +540,19 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       setIsDrawing(true);
       setCurrentPath([{ x, y }]);
     } else {
-      // Single click tools
+      // Single click tools (Tick, Cross, etc.)
+      const activeSectionName = sections.find(sec => 
+        sec.questions?.some(q => q.questionNo === currentQuestionId)
+      )?.name || (sections[0]?.name || '');
+
       const newAnno = {
         type: tool,
         x, y,
         color,
         lineWidth,
         questionId: currentQuestionId,
+        stepName: activeSectionName,
+        page: currentPage,
         id: Date.now()
       };
       
@@ -323,11 +560,15 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
         setPendingAnno(newAnno);
         setShowMarkPopup(true);
         setMarkInput('');
+        setStepName(activeSectionName);
         setIsSkipped(false);
+        setTool('move'); // Switch back to select/move mode immediately
       } else {
         const updated = [...annotations, newAnno];
         setAnnotations(updated);
+        saveAnnotationsToStorage(updated);
         onAnnotationsChange?.(updated);
+        setTool('move'); // Switch back to select/move mode immediately
       }
     }
   };
@@ -361,6 +602,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
     if (isDragging) {
       setIsDragging(false);
       setDraggedItem(null);
+      saveAnnotationsToStorage(annotations);
       onAnnotationsChange?.(annotations);
       return;
     }
@@ -375,43 +617,57 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
         color,
         lineWidth,
         questionId: currentQuestionId,
+        page: currentPage,
         id: Date.now()
       };
       const updated = [...annotations, newAnno];
       setAnnotations(updated);
+      saveAnnotationsToStorage(updated);
       onAnnotationsChange?.(updated);
     }
     setCurrentPath([]);
   };
-
   const handleUndo = () => {
     const updated = annotations.slice(0, -1);
     setAnnotations(updated);
+    saveAnnotationsToStorage(updated);
     onAnnotationsChange?.(updated);
+    setSelectedAnno(null);
   };
 
   const handleContextMenu = (e) => {
     e.preventDefault();
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || readOnly) return;
+    
+    // Lock context menu quick annotations if no question is selected
+    if (!currentQuestionId) {
+      alert("Please select a question from the right panel before you begin marking or annotating!");
+      return;
+    }
+
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
 
-    const defaultStep = sections.length > 0 ? sections[0].name : '';
+    const activeSectionName = sections.find(sec => 
+      sec.questions?.some(q => q.questionNo === currentQuestionId)
+    )?.name || (sections[0]?.name || '');
+
     const newAnno = {
       type: 'tick',
       x, y,
       color: '#00AA00',
       lineWidth: 2,
       questionId: currentQuestionId,
-      stepName: defaultStep,
+      stepName: activeSectionName,
+      page: currentPage,
       id: Date.now()
     };
     
     setPendingAnno(newAnno);
     setShowMarkPopup(true);
     setMarkInput('');
-    setStepName(defaultStep);
+    setStepName(activeSectionName);
     setIsSkipped(false);
   };
 
@@ -437,6 +693,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       };
       const updated = [...annotations, finalAnno];
       setAnnotations(updated);
+      saveAnnotationsToStorage(updated);
       onAnnotationsChange?.(updated);
       setPendingAnno(null);
       setShowMarkPopup(false);
@@ -452,7 +709,9 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
 
   const clearCanvas = () => {
     setAnnotations([]);
+    saveAnnotationsToStorage([]);
     onAnnotationsChange?.([]);
+    setSelectedAnno(null);
   };
 
   const addTextAnnotation = () => {
@@ -466,11 +725,13 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       color,
       lineWidth,
       questionId: currentQuestionId,
+      page: currentPage,
       id: Date.now()
     };
     
     const updated = [...annotations, newAnno];
     setAnnotations(updated);
+    saveAnnotationsToStorage(updated);
     onAnnotationsChange?.(updated);
     
     setTextInput('');
@@ -491,6 +752,8 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
     }
   };
 
+  const isToolDisabled = !currentQuestionId || readOnly;
+
   return (
     <div className="space-y-3 h-full flex flex-col">
       {/* Toolbar */}
@@ -499,7 +762,9 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
           <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">Evaluation Mode: </span>
           <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 uppercase">Q{currentQuestionId || "—"}</span>
           <div className="h-4 w-px bg-gray-300 mx-2" />
-          <span className="text-xs font-medium text-gray-500 italic">Right-click anywhere on the script to mark</span>
+          <span className="text-xs font-medium text-gray-500 italic">
+            {readOnly ? "Read-Only Mode (Submitted Script)" : "Right-click anywhere on the script to mark"}
+          </span>
         </div>
 
         <div className="flex flex-wrap gap-2 items-center text-xs">
@@ -507,52 +772,35 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
           <div className="flex gap-1 border-r border-gray-300 pr-2">
             <button
               onClick={() => setTool('move')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'move' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title="Move"
+              disabled={isToolDisabled}
+              className={`p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${tool === 'move' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              title="Move & Select Annotations"
             >
               <Move size={16} />
             </button>
             <button
-              onClick={() => setTool('pen')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'pen' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title="Pen"
-            >
-              <Pen size={16} />
-            </button>
-            <button
               onClick={() => setTool('text')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              disabled={isToolDisabled}
+              className={`p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${tool === 'text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               title="Text"
             >
               <Type size={16} />
             </button>
             <button
               onClick={() => setTool('tick')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'tick' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              disabled={isToolDisabled}
+              className={`p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${tool === 'tick' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               title="Tick"
             >
               <Check size={16} />
             </button>
             <button
               onClick={() => setTool('cross')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'cross' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              disabled={isToolDisabled}
+              className={`p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${tool === 'cross' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               title="Cross"
             >
               <X size={16} />
-            </button>
-            <button
-              onClick={() => setTool('circle')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'circle' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title="Circle"
-            >
-              <Circle size={16} />
-            </button>
-            <button
-              onClick={() => setTool('square')}
-              className={`p-2 rounded-lg transition-colors ${tool === 'square' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title="Square"
-            >
-              <Square size={16} />
             </button>
           </div>
 
@@ -560,33 +808,12 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
           <div className="flex gap-1 border-r border-gray-300 pr-2">
             <button
               onClick={handleUndo}
-              disabled={annotations.length === 0}
+              disabled={annotations.length === 0 || readOnly}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
               title="Undo"
             >
               <Undo size={16} />
             </button>
-          </div>
-
-          {/* Color & Size */}
-          <div className="flex gap-2 items-center border-r border-gray-300 pr-2">
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="w-8 h-8 rounded-lg cursor-pointer border border-gray-300"
-            />
-            <div className="flex items-center gap-1">
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={lineWidth}
-                onChange={(e) => setLineWidth(parseInt(e.target.value))}
-                className="w-20"
-              />
-              <span className="text-xs text-gray-600 w-6">{lineWidth}</span>
-            </div>
           </div>
 
           {/* Zoom */}
@@ -597,10 +824,61 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
           </div>
 
           {/* Actions */}
-          <div className="flex gap-1">
-            <button onClick={handleCopy} disabled={!selectedText} className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 disabled:opacity-50"><Copy size={16} /></button>
-            <button onClick={clearCanvas} className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"><RotateCcw size={16} /></button>
+          <div className="flex gap-2 items-center">
+            <button onClick={handleCopy} disabled={!selectedText} className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 disabled:opacity-50" title="Copy Text"><Copy size={16} /></button>
+            
+            {/* Blank Page Toggle Button */}
+            <button
+              onClick={() => {
+                const hasBlank = annotations.some(anno => anno.type === 'blank_page' && anno.page === currentPage);
+                let updated;
+                if (hasBlank) {
+                  updated = annotations.filter(anno => !(anno.type === 'blank_page' && anno.page === currentPage));
+                } else {
+                  updated = [...annotations, {
+                    type: 'blank_page',
+                    page: currentPage,
+                    color: '#FF0000',
+                    lineWidth: 3,
+                    id: Date.now()
+                  }];
+                }
+                setAnnotations(updated);
+                saveAnnotationsToStorage(updated);
+                onAnnotationsChange?.(updated);
+              }}
+              disabled={readOnly}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed ${
+                annotations.some(anno => anno.type === 'blank_page' && anno.page === currentPage)
+                  ? 'bg-red-600 text-white shadow-sm border border-red-700 animate-pulse'
+                  : 'bg-white hover:bg-red-50 text-red-600 border border-red-200'
+              }`}
+              title="Mark page as blank (draws red diagonal line)"
+            >
+              <FileText size={16} /> Blank Page
+            </button>
+
+            <button onClick={clearCanvas} disabled={readOnly} className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed" title="Clear Page"><RotateCcw size={16} /></button>
           </div>
+
+          {/* Delete Selected Annotation Button */}
+          {selectedAnno && (
+            <div className="flex gap-1 items-center bg-red-50 px-2 py-1 rounded-lg border border-red-200 animate-in slide-in-from-right duration-200 ml-auto">
+              <button
+                onClick={() => {
+                  const updated = annotations.filter(anno => anno.id !== selectedAnno.id);
+                  setAnnotations(updated);
+                  saveAnnotationsToStorage(updated);
+                  onAnnotationsChange?.(updated);
+                  setSelectedAnno(null);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-1.5 shadow-sm text-xs"
+                title="Delete Selected Annotation"
+              >
+                <Trash2 size={16} /> Delete Selected
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
@@ -680,6 +958,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
                         };
                         const updated = [...annotations, finalAnno];
                         setAnnotations(updated);
+                        saveAnnotationsToStorage(updated);
                         onAnnotationsChange?.(updated);
                         setPendingAnno(null);
                         setShowMarkPopup(false);
@@ -708,6 +987,7 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
                     };
                     const updated = [...annotations, finalAnno];
                     setAnnotations(updated);
+                    saveAnnotationsToStorage(updated);
                     onAnnotationsChange?.(updated);
                     setPendingAnno(null);
                     setShowMarkPopup(false);
@@ -782,6 +1062,6 @@ const PDFAnnotator = ({ onAnnotationsChange, currentQuestionId, onNextQuestion, 
       </div>
     </div>
   );
-};
+});
 
 export default PDFAnnotator;

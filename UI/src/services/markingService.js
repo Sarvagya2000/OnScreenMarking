@@ -66,13 +66,14 @@ const markingService = {
   },
 
   // Update marking
-  updateMarking: async (markingId, totalMarks, remarks = '') => {
+  updateMarking: async (markingId, totalMarks, remarks = '', evaluatedPdfUrl = '') => {
     try {
       const response = await apiCall(`/marking/${markingId}`, {
         method: 'PUT',
         body: JSON.stringify({
           totalMarks,
           remarks,
+          evaluatedPdfUrl,
         }),
       });
       return response;

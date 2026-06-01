@@ -140,6 +140,7 @@ const ExaminerMarking = () => {
   const [stream, setStream] = useState(null);
   const videoRef = useRef(null);
   const [isBlurred, setIsBlurred] = useState(false);
+  const annotatorRef = useRef(null);
 
   // Security Print & Screenshot Prevention
   useEffect(() => {
@@ -510,6 +511,9 @@ const ExaminerMarking = () => {
         if (markingResponse.remarks) {
           setRemarks(markingResponse.remarks);
         }
+        if (markingResponse.status === "submitted") {
+          setSubmitted(true);
+        }
         return markingResponse.id;
       }
     } catch (err) {
@@ -535,8 +539,8 @@ const ExaminerMarking = () => {
         const marks = {};
         const attemptCounts = {};
         
-        data.forEach((section) => {
-          expanded[section.id] = true;
+        data.forEach((section, index) => {
+          expanded[section.id] = index === 0; // Only expand the first section by default
           attemptCounts[section.id] = 0; // Initialize attempt count for section
           section.questions?.forEach((q) => {
             marks[q.questionId] = {
@@ -702,10 +706,14 @@ const ExaminerMarking = () => {
   };
 
   const toggleSection = (sectionId) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }));
+    setExpandedSections((prev) => {
+      const isCurrentlyExpanded = prev[sectionId];
+      const nextExpanded = {};
+      if (!isCurrentlyExpanded) {
+        nextExpanded[sectionId] = true;
+      }
+      return nextExpanded;
+    });
   };
 
   const handleMarkChange = (questionId, value) => {
@@ -760,6 +768,34 @@ const ExaminerMarking = () => {
         },
       };
       calculateTotal(updated);
+      
+      // Sync marks from right panel directly back into the annotations
+      if (scriptId) {
+        const saved = localStorage.getItem(`annotations_${scriptId}`);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            const updatedAnnos = parsed.map(anno => {
+              if (anno.questionId === question.questionNo) {
+                return {
+                  ...anno,
+                  marks: numValue,
+                  type: numValue > 0 ? 'tick' : 'cross',
+                  color: numValue > 0 ? '#00AA00' : '#FF0000'
+                };
+              }
+              return anno;
+            });
+            localStorage.setItem(`annotations_${scriptId}`, JSON.stringify(updatedAnnos));
+            
+            // Trigger instant sync to redraw the canvas
+            annotatorRef.current?.syncAnnotations();
+          } catch (e) {
+            console.error("Error syncing right panel change with annotations:", e);
+          }
+        }
+      }
+
       return updated;
     });
   };
@@ -792,14 +828,35 @@ const ExaminerMarking = () => {
   };
 
   const buildQuestionMarksPayload = () => {
-    return Object.entries(questionMarks).map(([qId, mark]) => ({
-      questionId: parseInt(qId),
-      questionNo: mark.questionNo,
-      marksAwarded: mark.marksAwarded || 0,
-      isSkipped: mark.isSkipped || false,
-      isAttempted: mark.isAttempted || false,
-      remarks: mark.remarks || "",
-    }));
+    return Object.entries(questionMarks).map(([qId, mark]) => {
+      const questionId = parseInt(qId);
+      const question = findQuestionById(questionId);
+      const section = question ? sections.find(s => s.id === question.sectionId) : null;
+      
+      // Check if this section has a maximum attempt limit and we have reached it
+      let limitReached = false;
+      if (section && section.maxQuestionsToAttempt > 0) {
+        const attemptedCount = section.questions?.filter(q => {
+          const m = questionMarks[q.questionId];
+          return m && (m.isAttempted || m.marksAwarded > 0);
+        }).length || 0;
+        
+        limitReached = attemptedCount >= section.maxQuestionsToAttempt;
+      }
+
+      const isAttempted = mark.isAttempted || mark.marksAwarded > 0;
+      // Auto skip if the question is unattempted AND the section's maximum attempt limit is reached
+      const isSkipped = mark.isSkipped || (!isAttempted && limitReached);
+
+      return {
+        questionId: questionId,
+        questionNo: mark.questionNo,
+        marksAwarded: mark.marksAwarded || 0,
+        isSkipped: isSkipped,
+        isAttempted: isAttempted,
+        remarks: mark.remarks || "",
+      };
+    });
   };
 
   const showStatus = (type, msg) => {
@@ -808,23 +865,32 @@ const ExaminerMarking = () => {
   };
 
   const handleSaveMarks = async () => {
-    
-    if (!markingId) {console.log("enter")
+    if (!markingId) {
       showStatus("error", "No active marking session. Cannot persist marks.");
       return;
     }
     try {
       setSaving(true);
+      
+      // Compile evaluated PDF copy with annotations intact and upload
+      let evaluatedUrl = "";
+      if (annotatorRef.current?.generateEvaluatedPdf) {
+        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf();
+      }
+
+      // Persist draft total, remarks and evaluated copy path
+      await markingService.updateMarking(markingId, totalObtained, remarks, evaluatedUrl);
+      
       const payload = buildQuestionMarksPayload();
       await markingService.saveQuestionMarks(markingId, payload);
-      showStatus("success", "Draft saved — marks stored in QuestionMark table.");
+      showStatus("success", "Draft saved — marks & evaluated PDF stored successfully.");
     } catch (err) {
       showStatus("error", "Error saving marks: " + (err?.message || err));
     } finally {
       setSaving(false);
     }
   };
-
+ 
   const handleSubmitMarking = async () => {
     if (totalObtained === 0) {
       showStatus("error", "Cannot submit with zero total marks. Please annotate/mark questions.");
@@ -834,13 +900,24 @@ const ExaminerMarking = () => {
       showStatus("error", "No active marking session. Cannot submit.");
       return;
     }
-
+ 
     try {
       setSaving(true);
-      // 1. Persist question marks first
+      
+      // Compile evaluated PDF copy with annotations intact and upload
+      let evaluatedUrl = "";
+      if (annotatorRef.current?.generateEvaluatedPdf) {
+        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf();
+      }
+
+      // Persist final marks, remarks, and evaluated copy path
+      await markingService.updateMarking(markingId, totalObtained, remarks, evaluatedUrl);
+
+      // Save question marks
       const payload = buildQuestionMarksPayload();
       await markingService.saveQuestionMarks(markingId, payload);
-      // 2. Submit the marking
+      
+      // Submit the marking
       await markingService.submitMarking(markingId);
       setSubmitted(true);
       showStatus("success", `Submitted! Total: ${totalObtained} / ${paperInfo?.maxMarks || 100}`);
@@ -852,8 +929,7 @@ const ExaminerMarking = () => {
   };
 
   const totalQuestionsCount = Object.keys(questionMarks).length;
-  const definedQuestionsCount = Object.values(questionMarks).filter(m => m.isAttempted || m.isSkipped).length;
-  const allQuestionsDefined = totalQuestionsCount > 0 && definedQuestionsCount === totalQuestionsCount;
+  const allQuestionsDefined = totalQuestionsCount > 0;
 
   if (loading) {
     return (
@@ -949,9 +1025,9 @@ const ExaminerMarking = () => {
           
           <button
             onClick={handleSubmitMarking}
-            disabled={submitted || saving || !allQuestionsDefined}
+            disabled={submitted || saving}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold uppercase text-sm transition-colors shadow-md cursor-pointer disabled:cursor-not-allowed"
-            title={!allQuestionsDefined ? `Please score or skip all questions (${definedQuestionsCount}/${totalQuestionsCount} completed)` : "Submit evaluation"}
+            title="Submit evaluation"
           >
             {saving ? "Saving..." : "Submit"}
           </button>
@@ -980,17 +1056,19 @@ const ExaminerMarking = () => {
       {/* MAIN LAYOUT */}
       <main className="flex-1 p-4 grid grid-cols-12 gap-4 overflow-hidden">
         {/* LEFT: ANNOTATOR AREA */}
-        <section className="col-span-9 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
-          <PDFAnnotator 
+        <section className="col-span-9 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">          <PDFAnnotator 
+            ref={annotatorRef}
             onAnnotationsChange={handleAnnotationsChange}
             currentQuestionId={selectedQuestion ? findQuestionById(selectedQuestion)?.questionNo : null}
             maxMarks={selectedQuestion ? findQuestionById(selectedQuestion)?.marks : 0}
             onNextQuestion={handleNextQuestion}
             sections={sections}
             pdfUrl={pdfUrl}
+            scriptId={scriptId}
+            readOnly={submitted}
           />
         </section>
-
+ 
         {/* RIGHT: MARKING PANEL */}
         <aside className="col-span-3 flex flex-col gap-4 overflow-hidden">
           {/* CONTROL CENTER */}
@@ -998,13 +1076,15 @@ const ExaminerMarking = () => {
             <div className="grid grid-cols-2 gap-2">
               <button 
                 onClick={handleSaveMarks}
-                className="flex items-center justify-center gap-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold py-2 rounded-lg shadow-sm transition-colors text-xs uppercase"
+                disabled={submitted}
+                className="flex items-center justify-center gap-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 disabled:bg-gray-100 disabled:text-gray-400 font-semibold py-2 rounded-lg shadow-sm transition-colors text-xs uppercase disabled:cursor-not-allowed"
               >
                 <Save size={16} /> Save
               </button>
               <button 
                 onClick={() => {if(window.confirm("Reset all marks?")) window.location.reload();}}
-                className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold py-2 rounded-lg shadow-sm transition-colors text-xs uppercase"
+                disabled={submitted}
+                className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 font-semibold py-2 rounded-lg shadow-sm transition-colors text-xs uppercase disabled:cursor-not-allowed"
               >
                 <RotateCcw size={16} /> Reset
               </button>
@@ -1109,7 +1189,8 @@ const ExaminerMarking = () => {
                                 step="0.5"
                                 value={m.marksAwarded || ""}
                                 onChange={(e) => handleMarkChange(q.questionId, parseFloat(e.target.value) || 0)}
-                                className={`w-16 text-center font-semibold rounded-lg border-2 py-1 text-sm outline-none transition-all ${
+                                disabled={submitted}
+                                className={`w-16 text-center font-semibold rounded-lg border-2 py-1 text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                                   isSelected 
                                     ? "bg-white text-blue-900 border-blue-400 focus:ring-2 ring-blue-300" 
                                     : "bg-gray-50 text-gray-900 border-gray-300 focus:border-blue-400"
@@ -1118,7 +1199,8 @@ const ExaminerMarking = () => {
                               />
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleSkipQuestion(q.questionId); }}
-                                className={`p-1.5 rounded-lg transition-colors ${
+                                disabled={submitted}
+                                className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                                   m.isSkipped 
                                     ? "bg-red-100 text-red-600" 
                                     : "text-gray-400 hover:text-red-500 hover:bg-red-50"
