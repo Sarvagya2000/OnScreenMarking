@@ -875,7 +875,7 @@ const ExaminerMarking = () => {
       // Compile evaluated PDF copy with annotations intact and upload
       let evaluatedUrl = "";
       if (annotatorRef.current?.generateEvaluatedPdf) {
-        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf();
+        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf(markingId);
       }
 
       // Persist draft total, remarks and evaluated copy path
@@ -907,7 +907,7 @@ const ExaminerMarking = () => {
       // Compile evaluated PDF copy with annotations intact and upload
       let evaluatedUrl = "";
       if (annotatorRef.current?.generateEvaluatedPdf) {
-        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf();
+        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf(markingId);
       }
 
       // Persist final marks, remarks, and evaluated copy path

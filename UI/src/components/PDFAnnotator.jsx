@@ -36,7 +36,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
 
   // Expose PDF generation and uploading to the parent component
   useImperativeHandle(ref, () => ({
-    generateEvaluatedPdf: async () => {
+    generateEvaluatedPdf: async (mId) => {
       try {
         if (pdfPages.length === 0) return "";
         
@@ -89,7 +89,11 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
         formData.append('file', pdfBlob, `evaluated_${scriptId}.pdf`);
 
         const token = localStorage.getItem('token');
-        const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+        const uploadUrl = mId 
+          ? `${import.meta.env.VITE_API_URL}/upload?markingId=${mId}`
+          : `${import.meta.env.VITE_API_URL}/upload`;
+
+        const uploadResponse = await fetch(uploadUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
