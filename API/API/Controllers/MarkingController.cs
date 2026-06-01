@@ -28,6 +28,7 @@ namespace API.Controllers
                 // Verify allocation exists
                 var allocation = await _context.Allocations
                     .Include(a => a.Script)
+                        .ThenInclude(s => s.Paper)
                     .FirstOrDefaultAsync(a => a.AllocationId == request.AllocationId);
 
                 if (allocation == null)
@@ -56,13 +57,16 @@ namespace API.Controllers
                     return Ok(existingMarkingDto);
                 }
 
+                decimal maxMarks = allocation.Script?.Paper?.MaxMarks ?? 100;
+                if (maxMarks <= 0) maxMarks = 100;
+
                 var marking = new Marking
                 {
                     ScriptId = allocation.ScriptId,
                     ExaminerId = request.ExaminerId,
                     AllocationId = request.AllocationId,
                     TotalMarks = request.TotalMarks,
-                    Percentage = (request.TotalMarks) * 100,
+                    Percentage = (request.TotalMarks / maxMarks) * 100,
                     Remarks = request.Remarks ?? "",
                     Status = "draft",
                     StartedAt = DateTime.UtcNow,
@@ -137,6 +141,7 @@ namespace API.Controllers
             {
                 var existingMarking = await _context.Markings
                     .Include(m => m.Script)
+                        .ThenInclude(s => s.Paper)
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (existingMarking == null)
@@ -145,9 +150,13 @@ namespace API.Controllers
                 if (existingMarking.Status == "submitted")
                     return BadRequest(new { success = false, message = "Cannot update submitted marking" });
 
+                decimal maxMarks = existingMarking.Script?.Paper?.MaxMarks ?? 100;
+                if (maxMarks <= 0) maxMarks = 100;
+
                 existingMarking.TotalMarks = request.TotalMarks;
-                existingMarking.Percentage = (request.TotalMarks) * 100;
+                existingMarking.Percentage = (request.TotalMarks / maxMarks) * 100;
                 existingMarking.Remarks = request.Remarks;
+                existingMarking.EvaluatedPdfUrl = request.EvaluatedPdfUrl ?? "";
                 existingMarking.UpdatedAt = DateTime.UtcNow;
 
                 _context.Markings.Update(existingMarking);
@@ -377,6 +386,7 @@ namespace API.Controllers
                 var marking = await _context.Markings
                     .Include(m => m.QuestionMarks)
                     .Include(m => m.Script)
+                        .ThenInclude(s => s.Paper)
                     .FirstOrDefaultAsync(m => m.Id == markingId);
 
                 if (marking == null)
@@ -500,8 +510,11 @@ namespace API.Controllers
                 }
 
                 // Update marking totals
+                decimal maxMarks = marking.Script?.Paper?.MaxMarks ?? 100;
+                if (maxMarks <= 0) maxMarks = 100;
+
                 marking.TotalMarks = totalMarks;
-                marking.Percentage = (totalMarks) * 100;
+                marking.Percentage = (totalMarks / maxMarks) * 100;
                 marking.UpdatedAt = DateTime.UtcNow;
 
                 _context.Markings.Update(marking);
