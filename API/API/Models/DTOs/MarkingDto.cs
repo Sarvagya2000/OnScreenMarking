@@ -20,6 +20,7 @@ namespace API.Models.DTOs
         public int ExaminerId { get; set; }
         public decimal TotalMarks { get; set; }
         public string Remarks { get; set; }
+        public string? EvaluatedPdfUrl { get; set; }
     }
 
     public class QuestionMarkDto
