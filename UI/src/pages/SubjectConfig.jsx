@@ -249,9 +249,46 @@ export default function SubjectConfig() {
     }
 
     // Validate if the sum of individual question marks matches the section's total marks
-    const questionsSum = questions.reduce((sum, q) => sum + (parseFloat(q.marks) || 0), 0);
-    if (Math.abs(questionsSum - parseFloat(sectionForm.totalMarks)) > 0.01) {
-      setError(`Mismatched Marks! The sum of your individual questions is ${questionsSum}, but the section total marks is configured as ${sectionForm.totalMarks}. Please update the section's Total Marks (under 'Structure' in the left panel) to ${questionsSum} before saving.`);
+    const maxAttempts = parseInt(sectionForm.maxQuestionsToAttempt) || questions.length;
+    const expectedTotalMarks = parseFloat(sectionForm.totalMarks) || 0;
+
+    // Build the pool of available marks that a student can choose from
+    const compulsoryMarks = questions.filter(q => !q.isOptional).map(q => parseFloat(q.marks) || 0);
+    const independentOptionalMarks = questions.filter(q => q.isOptional && !q.optionalGroupCode).map(q => parseFloat(q.marks) || 0);
+    
+    // Group optional questions by group code to respect mutual exclusivity (at most 1 per group code)
+    const groupCodeToMarks = {};
+    questions.forEach(q => {
+      if (q.isOptional && q.optionalGroupCode) {
+        const code = q.optionalGroupCode.trim();
+        if (code) {
+          const marks = parseFloat(q.marks) || 0;
+          if (!groupCodeToMarks[code] || marks > groupCodeToMarks[code]) {
+            groupCodeToMarks[code] = marks;
+          }
+        } else {
+          // Treat empty/whitespace group code as independent optional
+          independentOptionalMarks.push(parseFloat(q.marks) || 0);
+        }
+      }
+    });
+    
+    const groupOptionalMarks = Object.values(groupCodeToMarks);
+    
+    // Combine all selectable marks under mutual exclusivity rules
+    const selectablePool = [...compulsoryMarks, ...independentOptionalMarks, ...groupOptionalMarks];
+    // Sort pool in descending order to find the highest achievable marks
+    selectablePool.sort((a, b) => b - a);
+    
+    // Sum the top 'maxAttempts' marks
+    const maxAchievableSum = selectablePool.slice(0, maxAttempts).reduce((sum, m) => sum + m, 0);
+
+    if (Math.abs(maxAchievableSum - expectedTotalMarks) > 0.01) {
+      if (maxAttempts < questions.length) {
+        setError(`Mismatched Marks! Under 'Structure' in the left panel, the section's Total Marks is configured as ${sectionForm.totalMarks}. However, based on attempting a maximum of ${maxAttempts} question(s) and optional group rules, the maximum achievable marks is ${maxAchievableSum}. Please update the section's Total Marks to ${maxAchievableSum} or adjust the Attempt count to ${selectablePool.length} before saving.`);
+      } else {
+        setError(`Mismatched Marks! Under 'Structure' in the left panel, the section's Total Marks is configured as ${sectionForm.totalMarks}. However, based on optional group rules, the maximum achievable marks from compulsory and optional choices is ${maxAchievableSum}. Please update the section's Total Marks to ${maxAchievableSum} before saving.`);
+      }
       return;
     }
 
@@ -757,7 +794,7 @@ export default function SubjectConfig() {
                             className="w-full bg-white px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 shadow-sm transition-all"
                           >
                             <option value="">Choose Type...</option>
-                            {['MCQ', 'SA', 'LA', 'CS', 'NP', 'EXP', 'RC', 'WS', 'LIT', 'GV'].map(type => (
+                            {['MCQ', 'SA', 'LA'].map(type => (
                               <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
@@ -807,7 +844,7 @@ export default function SubjectConfig() {
                                       }`}
                                     >
                                       <option value="">Type</option>
-                                      {['MCQ', 'SA', 'LA', 'CS', 'NP', 'EXP', 'RC', 'WS', 'LIT', 'GV'].map(type => (
+                                      {['MCQ', 'SA', 'LA'].map(type => (
                                         <option key={type} value={type}>{type}</option>
                                       ))}
                                     </select>
