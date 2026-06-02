@@ -14,6 +14,10 @@ namespace API.Models.DTOs
         public string? Remarks { get; set; }
         public DateTime? SubmittedAt { get; set; }
         public int? AllocationId { get; set; }
+        public string? PaperName { get; set; }
+        public string? PaperCode { get; set; }
+        public string? SubjectName { get; set; }
+        public int? SubjectId { get; set; }
     }
 
     public class AssignScriptRequest

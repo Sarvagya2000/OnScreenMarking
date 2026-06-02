@@ -39,24 +39,33 @@ namespace API.Controllers
                 var total = await query.CountAsync();
                 var scripts = await query
                     .Include(s => s.Paper)
+                        .ThenInclude(p => p.SubjectPapers)
+                            .ThenInclude(sp => sp.Subject)
                     .Skip((page - 1) * limit)
                     .Take(limit)
                     .OrderByDescending(s => s.CreatedAt)
                     .ToListAsync();
 
-                var scriptDtos = scripts.Select(s => new ScriptDto
-                {
-                    Id = s.Id,
-                    GeneratedBarcode = s.GeneratedBarcode,
-                    InBuiltBarCode = s.InBuiltBarcode,
-                    PaperId = s.PaperId,
-                    CleanPdfUrl = s.CleanPdfUrl,
-                    Status = s.Status,
-                    IsReEvaluationRequested = s.IsReEvaluationRequested,
-                    TotalMarks = s.TotalMarks,
-                    Percentage = s.Percentage,
-                    Remarks = s.Remarks,
-                    SubmittedAt = s.SubmittedAt
+                var scriptDtos = scripts.Select(s => {
+                    var subjectPaper = s.Paper?.SubjectPapers?.FirstOrDefault();
+                    return new ScriptDto
+                    {
+                        Id = s.Id,
+                        GeneratedBarcode = s.GeneratedBarcode,
+                        InBuiltBarCode = s.InBuiltBarcode,
+                        PaperId = s.PaperId,
+                        CleanPdfUrl = s.CleanPdfUrl,
+                        Status = s.Status,
+                        IsReEvaluationRequested = s.IsReEvaluationRequested,
+                        TotalMarks = s.TotalMarks,
+                        Percentage = s.Percentage,
+                        Remarks = s.Remarks,
+                        SubmittedAt = s.SubmittedAt,
+                        PaperName = s.Paper?.PaperName,
+                        PaperCode = s.Paper?.PaperCode,
+                        SubjectId = subjectPaper?.SubjectId,
+                        SubjectName = subjectPaper?.Subject?.SubName
+                    };
                 }).ToList();
 
                 Response.Headers.Add("X-Total-Count", total.ToString());
@@ -78,11 +87,14 @@ namespace API.Controllers
             {
                 var script = await _context.Scripts
                     .Include(s => s.Paper)
+                        .ThenInclude(p => p.SubjectPapers)
+                            .ThenInclude(sp => sp.Subject)
                     .FirstOrDefaultAsync(s => s.Id == id);
 
                 if (script == null)
                     return NotFound(new { success = false, message = "Script not found" });
 
+                var subjectPaper = script.Paper?.SubjectPapers?.FirstOrDefault();
                 var scriptDto = new ScriptDto
                 {
                     Id = script.Id,
@@ -95,7 +107,11 @@ namespace API.Controllers
                     TotalMarks = script.TotalMarks,
                     Percentage = script.Percentage,
                     Remarks = script.Remarks,
-                    SubmittedAt = script.SubmittedAt
+                    SubmittedAt = script.SubmittedAt,
+                    PaperName = script.Paper?.PaperName,
+                    PaperCode = script.Paper?.PaperCode,
+                    SubjectId = subjectPaper?.SubjectId,
+                    SubjectName = subjectPaper?.Subject?.SubName
                 };
 
                 return Ok(scriptDto);
@@ -240,14 +256,17 @@ namespace API.Controllers
 
                 var scriptIds = allocations.Select(a => a.ScriptId).ToList();
 
-                var scripts = await _context.Scripts
+                 var scripts = await _context.Scripts
                     .Where(s => scriptIds.Contains(s.Id))
                     .Include(s => s.Paper)
+                        .ThenInclude(p => p.SubjectPapers)
+                            .ThenInclude(sp => sp.Subject)
                     .OrderByDescending(s => s.CreatedAt)
                     .ToListAsync();
 
                 var scriptDtos = scripts.Select(s => {
                     var alloc = allocations.FirstOrDefault(a => a.ScriptId == s.Id);
+                    var subjectPaper = s.Paper?.SubjectPapers?.FirstOrDefault();
                     return new ScriptDto
                     {
                         Id = s.Id,
@@ -261,7 +280,11 @@ namespace API.Controllers
                         Percentage = s.Percentage,
                         Remarks = s.Remarks,
                         SubmittedAt = s.SubmittedAt,
-                        AllocationId = alloc?.AllocationId
+                        AllocationId = alloc?.AllocationId,
+                        PaperName = s.Paper?.PaperName,
+                        PaperCode = s.Paper?.PaperCode,
+                        SubjectId = subjectPaper?.SubjectId,
+                        SubjectName = subjectPaper?.Subject?.SubName
                     };
                 }).ToList();
 

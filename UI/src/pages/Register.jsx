@@ -17,6 +17,7 @@ import {
 import authService from "../services/authService";
 import universityService from "../services/universityService";
 import subjectService from "../services/subjectService";
+import message from '../services/messageService';
 
 // Helper to calculate average brightness of canvas image data (0-255)
 const calculateBrightness = (canvas) => {
@@ -81,7 +82,7 @@ const calculateSharpness = (canvas) => {
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  
   const [registered, setRegistered] = useState(false);
 
   const [universities, setUniversities] = useState([]);
@@ -144,7 +145,7 @@ const Register = () => {
         setUniversities(data);
       } catch (err) {
         console.error("Failed to fetch universities:", err);
-        setError(
+        message.error(
           "Failed to fetch university details. Please check if the API is running.",
         );
       }
@@ -215,7 +216,7 @@ const Register = () => {
         else if (!faceValidation.isGoodLighting) errorMsg += "Poor lighting conditions.";
         else if (!faceValidation.isSharp) errorMsg += "Image is blurry. Hold still.";
         
-        setError(errorMsg);
+        message.error(errorMsg);
         return;
       }
     }
@@ -243,7 +244,7 @@ const Register = () => {
 
   const startCamera = async () => {
     try {
-      setError("");
+      
       setBlinkCount(0);
       blinkCountRef.current = 0;
       eyesClosedRef.current = false;
@@ -545,7 +546,7 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    
 
     if (
       !formData.name ||
@@ -688,15 +689,7 @@ const Register = () => {
           </p>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-            <AlertCircle
-              className="text-red-600 flex-shrink-0 mt-0.5"
-              size={20}
-            />
-            <p className="text-red-700 text-sm font-medium">{error}</p>
-          </div>
-        )}
+        
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* University Selection */}

@@ -15,12 +15,13 @@ import {
   HelpCircle,
   Activity
 } from 'lucide-react';
+import message from '../services/messageService';
 
 export default function CollegeManagement() {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  
+  
 
   // Form Modals
   const [showFormModal, setShowFormModal] = useState(false);
@@ -48,12 +49,12 @@ export default function CollegeManagement() {
   const fetchColleges = async () => {
     try {
       setLoading(true);
-      setError('');
+      
       const data = await collegeService.getAllColleges();
       setColleges(data);
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch colleges.');
+      message.error('Failed to fetch colleges.');
     } finally {
       setLoading(false);
     }
@@ -88,30 +89,30 @@ export default function CollegeManagement() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formData.collegeName.trim()) {
-      setError('College name is required.');
+      message.error('College name is required.');
       return;
     }
     if (!formData.collegeCode.trim()) {
-      setError('College code is required.');
+      message.error('College code is required.');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      
       if (editingId) {
         await collegeService.updateCollege(editingId, formData);
-        setSuccess('College updated successfully!');
+        message.success('College updated successfully!');
       } else {
         await collegeService.createCollege(formData);
-        setSuccess('College created successfully!');
+        message.success('College created successfully!');
       }
       setShowFormModal(false);
       fetchColleges();
-      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to save college.');
+      message.error(err.message || 'Failed to save college.');
     } finally {
       setLoading(false);
     }
@@ -124,14 +125,14 @@ export default function CollegeManagement() {
 
     try {
       setLoading(true);
-      setError('');
+      
       await collegeService.deleteCollege(id);
-      setSuccess('College deleted successfully!');
+      message.success('College deleted successfully!');
       fetchColleges();
-      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (err) {
       console.error(err);
-      setError('Failed to delete college.');
+      message.error('Failed to delete college.');
     } finally {
       setLoading(false);
     }
@@ -153,27 +154,27 @@ export default function CollegeManagement() {
   const handleImportSubmit = async (e) => {
     e.preventDefault();
     if (!importFile) {
-      setError('Please select a CSV file to upload.');
+      message.error('Please select a CSV file to upload.');
       return;
     }
 
     try {
       setImportLoading(true);
-      setError('');
+      
       setImportResults(null);
       
       const result = await collegeService.importColleges(importFile);
       setImportResults(result);
       if (result.success) {
-        setSuccess(`Successfully imported ${result.importedCount} colleges!`);
+        message.success(`Successfully imported ${result.importedCount} colleges!`);
         fetchColleges();
         setImportFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
-        setTimeout(() => setSuccess(''), 4000);
+        
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to import colleges.');
+      message.error(err.message || 'Failed to import colleges.');
     } finally {
       setImportLoading(false);
     }
@@ -323,18 +324,8 @@ export default function CollegeManagement() {
         )}
 
         {/* Feedback Messages */}
-        {error && (
-          <div className="flex items-center gap-3 bg-rose-50 border border-rose-100 text-rose-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm">
-            <XCircle size={16} className="shrink-0 text-rose-500" />
-            <span>{error}</span>
-          </div>
-        )}
-        {success && (
-          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 text-emerald-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm">
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />
-            <span>{success}</span>
-          </div>
-        )}
+        
+        
 
         {/* Colleges Registry Table */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">

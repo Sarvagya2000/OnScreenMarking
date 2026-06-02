@@ -25,15 +25,31 @@ import { useAuth } from '../context/AuthContext';
 import apiCall from '../services/api';
 import { decryptId, encryptId } from '../utils/encryption';
 import { useBreadcrumb } from '../context/BreadcrumbContext';
+import message from '../services/messageService';
 
 export default function SubjectConfig() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const encryptedProjectId = searchParams.get('projectId');
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
   const urlSubjectId = searchParams.get('subjectId') ? parseInt(decryptId(searchParams.get('subjectId')), 10) : null;
   const urlPaperId = searchParams.get('paperId') ? parseInt(decryptId(searchParams.get('paperId')), 10) : null;
   const { userType } = useAuth();
   const { setBreadcrumb } = useBreadcrumb();
+
+  const handleBackFromPapers = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('subjectId');
+    newParams.delete('paperId');
+    setSearchParams(newParams);
+    setSelectedSubject(null);
+  };
+
+  const handleBackFromSections = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('paperId');
+    setSearchParams(newParams);
+    setSelectedPaper(null);
+  };
 
   const [projectData, setProjectData] = useState(null);
   const [subjects, setSubjects] = useState([]);
@@ -60,8 +76,6 @@ export default function SubjectConfig() {
   const [questions, setQuestions] = useState([]);
   
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (projectId) {
@@ -148,7 +162,7 @@ export default function SubjectConfig() {
         }
       }
     } catch (err) {
-      setError('Failed to fetch subjects');
+      message.error('Failed to fetch subjects');
       console.error(err);
     } finally {
       setLoading(false);
@@ -169,7 +183,7 @@ export default function SubjectConfig() {
         }
       }
     } catch (err) {
-      setError('Failed to fetch papers');
+      message.error('Failed to fetch papers');
       console.error(err);
     } finally {
       setLoading(false);
@@ -182,7 +196,7 @@ export default function SubjectConfig() {
       const data = await sectionService.getAllSections(selectedPaper.paperId);
       setSections(data);
     } catch (err) {
-      setError('Failed to fetch sections');
+      message.error('Failed to fetch sections');
       console.error(err);
     } finally {
       setLoading(false);
@@ -244,7 +258,7 @@ export default function SubjectConfig() {
 
   const handleSaveSection = async () => {
     if (questions.some(q => !q.type)) {
-      setError('Please select a type for all questions');
+      message.warning('Please select a type for all questions');
       return;
     }
 
@@ -285,9 +299,9 @@ export default function SubjectConfig() {
 
     if (Math.abs(maxAchievableSum - expectedTotalMarks) > 0.01) {
       if (maxAttempts < questions.length) {
-        setError(`Mismatched Marks! Under 'Structure' in the left panel, the section's Total Marks is configured as ${sectionForm.totalMarks}. However, based on attempting a maximum of ${maxAttempts} question(s) and optional group rules, the maximum achievable marks is ${maxAchievableSum}. Please update the section's Total Marks to ${maxAchievableSum} or adjust the Attempt count to ${selectablePool.length} before saving.`);
+        message.warning(`Mismatched Marks! Under 'Structure' in the left panel, the section's Total Marks is configured as ${sectionForm.totalMarks}. However, based on attempting a maximum of ${maxAttempts} question(s) and optional group rules, the maximum achievable marks is ${maxAchievableSum}. Please update the section's Total Marks to ${maxAchievableSum} or adjust the Attempt count to ${selectablePool.length} before saving.`);
       } else {
-        setError(`Mismatched Marks! Under 'Structure' in the left panel, the section's Total Marks is configured as ${sectionForm.totalMarks}. However, based on optional group rules, the maximum achievable marks from compulsory and optional choices is ${maxAchievableSum}. Please update the section's Total Marks to ${maxAchievableSum} before saving.`);
+        message.warning(`Mismatched Marks! Under 'Structure' in the left panel, the section's Total Marks is configured as ${sectionForm.totalMarks}. However, based on optional group rules, the maximum achievable marks from compulsory and optional choices is ${maxAchievableSum}. Please update the section's Total Marks to ${maxAchievableSum} before saving.`);
       }
       return;
     }
@@ -306,10 +320,10 @@ export default function SubjectConfig() {
 
       if (editingSectionId) {
         await sectionService.updateSection(editingSectionId, sectionData);
-        setSuccess('Section updated successfully');
+        message.success('Section updated successfully');
       } else {
         await sectionService.createSection(sectionData);
-        setSuccess('Section created successfully');
+        message.success('Section created successfully');
       }
 
       setShowSectionForm(false);
@@ -326,7 +340,7 @@ export default function SubjectConfig() {
       setQuestions([]);
       fetchSections();
     } catch (err) {
-      setError('Failed to save section');
+      message.error('Failed to save section');
       console.error(err);
     } finally {
       setLoading(false);
@@ -338,10 +352,10 @@ export default function SubjectConfig() {
       try {
         setLoading(true);
         await sectionService.deleteSection(sectionId);
-        setSuccess('Section deleted successfully!');
+        message.success('Section deleted successfully!');
         await fetchSections();
       } catch (err) {
-        setError('Failed to delete section');
+        message.error('Failed to delete section');
         console.error(err);
       } finally {
         setLoading(false);
@@ -447,20 +461,6 @@ export default function SubjectConfig() {
         </div>
 
         {/* Notifications */}
-        <div className="fixed top-6 right-6 z-50 flex flex-col gap-3">
-          {error && (
-            <div className="bg-white border-l-4 border-red-500 shadow-xl text-red-600 px-6 py-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-right duration-300">
-              <AlertCircle className="w-5 h-5" />
-              <p className="font-bold">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="bg-white border-l-4 border-emerald-500 shadow-xl text-emerald-600 px-6 py-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-right duration-300">
-              <CheckCircle2 className="w-5 h-5" />
-              <p className="font-bold">{success}</p>
-            </div>
-          )}
-        </div>
 
         {/* Step 1: Subject Selection (Insta-Story Style) */}
         {currentStep === 1 && (
@@ -538,7 +538,7 @@ export default function SubjectConfig() {
               <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => setSelectedSubject(null)}
+                    onClick={handleBackFromPapers}
                     className="p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl text-gray-600 transition-all active:scale-95"
                   >
                     <ArrowLeft className="w-6 h-6" />
@@ -591,7 +591,7 @@ export default function SubjectConfig() {
                   <FileText className="w-12 h-12 text-gray-300 mb-3" />
                   <p className="text-gray-400 font-bold text-lg">No papers found for this subject</p>
                   <button 
-                    onClick={() => setSelectedSubject(null)}
+                    onClick={handleBackFromPapers}
                     className="mt-4 text-blue-600 hover:text-blue-700 font-bold transition-all"
                   >
                     Go back to subjects
@@ -610,7 +610,7 @@ export default function SubjectConfig() {
               <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => setSelectedPaper(null)}
+                    onClick={handleBackFromSections}
                     className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 transition-all active:scale-95"
                   >
                     <ArrowLeft className="w-5 h-5" />

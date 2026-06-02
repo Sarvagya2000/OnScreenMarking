@@ -17,6 +17,7 @@ import apiCall from '../services/api';
 import paperService from '../services/paperService';
 import allocationService from '../services/allocationService';
 import sectionService from '../services/sectionService';
+import message from '../services/messageService';
 import { decryptId } from '../utils/encryption';
 
 export default function ScriptAllocation() {
@@ -24,6 +25,7 @@ export default function ScriptAllocation() {
   const encryptedProjectId = searchParams.get('projectId');
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
   const sessionId = searchParams.get('sessionId');
+  const paperIdFromUrl = searchParams.get('paperId');
   const { userType, universityId: userUniversityId } = useAuth();
   const universityIdFromUrl = searchParams.get('universityId');
   const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityIdFromUrl;
@@ -34,8 +36,6 @@ export default function ScriptAllocation() {
   const [scripts, setScripts] = useState([]);
   const [examiners, setExaminers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [allocationData, setAllocationData] = useState({});
   
@@ -59,9 +59,18 @@ export default function ScriptAllocation() {
       } else {
         papersData = await paperService.getAllPapers(activeUniversityId);
       }
-      setPapers(papersData || []);
+      const papersList = papersData || [];
+      setPapers(papersList);
+
+      // Auto-select paper if paperId is in URL
+      if (paperIdFromUrl && papersList.length > 0) {
+        const matchedPaper = papersList.find(p => p.paperId.toString() === paperIdFromUrl.toString());
+        if (matchedPaper) {
+          handlePaperSelect(matchedPaper);
+        }
+      }
     } catch (err) {
-      setError('Failed to fetch papers');
+      message.error('Failed to fetch papers');
       console.error(err);
     } finally {
       setLoading(false);
@@ -69,8 +78,6 @@ export default function ScriptAllocation() {
   };
 
   const handlePaperSelect = async (paper) => {
-    setError('');
-    setSuccess('');
     setSelectedPaper(paper);
     setPaperInfo(paper);
     setLoading(true);
@@ -78,7 +85,7 @@ export default function ScriptAllocation() {
       // First verify if paper sections are configured
       const sectionsData = await sectionService.getAllSections(paper.paperId);
       if (!sectionsData || sectionsData.length === 0) {
-        setError(`Warning: Paper "${paper.paperName}" does not have sections or questions configured yet. You must complete the Subject & Paper configuration under "Sessions & Projects" first, otherwise scripts cannot be allocated.`);
+        message.warning(`Warning: Paper "${paper.paperName}" does not have sections or questions configured yet. You must complete the Subject & Paper configuration under "Sessions & Projects" first, otherwise scripts cannot be allocated.`);
         setSelectedPaper(null);
         setPaperInfo(null);
         setScripts([]);
@@ -102,7 +109,7 @@ export default function ScriptAllocation() {
       });
       setAllocationData(allocation);
     } catch (err) {
-      setError('Failed to fetch paper details');
+      message.error('Failed to fetch paper details');
       console.error(err);
     } finally {
       setLoading(false);
@@ -118,10 +125,9 @@ export default function ScriptAllocation() {
         [Id]: examinerId
       }));
 
-      setSuccess('Script allocated successfully');
-      setTimeout(() => setSuccess(''), 3000);
+      message.success('Script allocated successfully');
     } catch (err) {
-      setError('Failed to allocate script');
+      message.error('Failed to allocate script');
       console.error(err);
     }
   };
@@ -139,10 +145,9 @@ export default function ScriptAllocation() {
         [Id]: null
       }));
 
-      setSuccess('Allocation removed successfully');
-      setTimeout(() => setSuccess(''), 3000);
+      message.success('Allocation removed successfully');
     } catch (err) {
-      setError('Failed to remove allocation');
+      message.error('Failed to remove allocation');
       console.error(err);
     }
   };
@@ -170,7 +175,7 @@ export default function ScriptAllocation() {
     const activeExaminers = examiners.filter(e => e.examinerId);
     
     if (activeExaminers.length === 0 || pendingScripts.length === 0) {
-      setError('No pending scripts or examiners available');
+      message.warning('No pending scripts or examiners available');
       return;
     }
 
@@ -191,14 +196,14 @@ export default function ScriptAllocation() {
       const pendingScripts = scripts.filter(s => !allocationData[s.Id]);
       
       if (pendingScripts.length === 0) {
-        setError('No pending scripts to allocate');
+        message.warning('No pending scripts to allocate');
         return;
       }
 
       // Validate that total allocation matches pending scripts
       const totalAllocated = Object.values(examinerCounts).reduce((sum, count) => sum + count, 0);
       if (totalAllocated !== pendingScripts.length) {
-        setError(`Total allocation (${totalAllocated}) must equal pending scripts (${pendingScripts.length})`);
+        message.warning(`Total allocation (${totalAllocated}) must equal pending scripts (${pendingScripts.length})`);
         return;
       }
 
@@ -222,11 +227,10 @@ export default function ScriptAllocation() {
       }
       setAllocationData(newAllocationData);
 
-      setSuccess(`Successfully allocated ${response?.results?.length || totalAllocated} scripts randomly in backend`);
+      message.success(`Successfully allocated ${response?.results?.length || totalAllocated} scripts randomly in backend`);
       setShowBulkModal(false);
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Failed to perform bulk allocation');
+      message.error('Failed to perform bulk allocation');
       console.error(err);
     } finally {
       setBulkLoading(false);
@@ -261,18 +265,7 @@ export default function ScriptAllocation() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 flex items-center gap-3">
-            <AlertCircle size={20} />
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl mb-6 flex items-center gap-3">
-            <CheckCircle2 size={20} />
-            {success}
-          </div>
-        )}
+
 
         {/* Step 1: Select Paper */}
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 mb-8">
