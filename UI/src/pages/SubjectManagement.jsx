@@ -16,6 +16,7 @@ import {
   CheckCircle2, 
   Building2 
 } from 'lucide-react';
+import message from '../services/messageService';
 
 export default function SubjectManagement() {
   const [searchParams] = useSearchParams();
@@ -34,7 +35,7 @@ export default function SubjectManagement() {
     status: true
   });
 
-  const [success, setSuccess] = useState('');
+  
 
   // Define fetch function for paginated subjects
   const fetchFn = useCallback((params) => {
@@ -69,6 +70,13 @@ export default function SubjectManagement() {
     fetchFn,
     initialParams: { pageSize: 10 }
   });
+
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+      setError('');
+    }
+  }, [error, setError]);
 
   // Load static departments for dropdown selects (pageSize: 0 retrieves all)
   useEffect(() => {
@@ -123,13 +131,13 @@ export default function SubjectManagement() {
     setFormData({ subName: '', subCode: '', status: true });
     setEditingId(null);
     setShowForm(false);
-    setError('');
+    
   };
 
   const handleSuccess = (msg) => {
-    setSuccess(msg);
+    message.success(msg);
     refresh();
-    setTimeout(() => setSuccess(''), 3000);
+    
   };
 
   return (
@@ -227,18 +235,8 @@ export default function SubjectManagement() {
         </div>
 
         {/* Notifications */}
-        {error && (
-          <div className="flex items-center gap-3 bg-rose-50 border border-rose-100 text-rose-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in">
-            <XCircle size={16} className="shrink-0 text-rose-500" />
-            <span>{error}</span>
-          </div>
-        )}
-        {success && (
-          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 text-emerald-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in">
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />
-            <span>{success}</span>
-          </div>
-        )}
+        
+        
 
         {/* Form Modal */}
         <AddSubjectModal

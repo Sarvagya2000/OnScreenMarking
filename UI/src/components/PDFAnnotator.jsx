@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 're
 import { RotateCcw, Copy, Type, ZoomIn, ZoomOut, Check, X, Undo, Move, Trash2, FileText } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import message from '../services/messageService';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -501,7 +502,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
     
     // Core check: drawing and annotation tools are locked until a question is selected
     if (!currentQuestionId) {
-      alert("Please select a question from the right panel before you begin marking or annotating!");
+      message.warning("Please select a question from the right panel before you begin marking or annotating!");
       return;
     }
 
@@ -645,7 +646,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
     
     // Lock context menu quick annotations if no question is selected
     if (!currentQuestionId) {
-      alert("Please select a question from the right panel before you begin marking or annotating!");
+      message.warning("Please select a question from the right panel before you begin marking or annotating!");
       return;
     }
 
@@ -745,7 +746,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
   const handleCopy = () => {
     if (selectedText) {
       navigator.clipboard.writeText(selectedText);
-      alert('Text copied to clipboard!');
+      message.success('Text copied to clipboard!');
     }
   };
 

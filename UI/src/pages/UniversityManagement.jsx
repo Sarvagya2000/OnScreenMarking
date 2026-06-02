@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import universityService from '../services/universityService';
+import message from '../services/messageService';
 
 export default function UniversityManagement() {
   const [universities, setUniversities] = useState([]);
@@ -12,8 +13,8 @@ export default function UniversityManagement() {
     isActive: true
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  
+  
 
   useEffect(() => {
     fetchUniversities();
@@ -25,7 +26,7 @@ export default function UniversityManagement() {
       const data = await universityService.getAllUniversities();
       setUniversities(data);
     } catch (err) {
-      setError('Failed to fetch universities');
+      message.error('Failed to fetch universities');
       console.error(err);
     } finally {
       setLoading(false);
@@ -38,17 +39,17 @@ export default function UniversityManagement() {
       setLoading(true);
       if (editingId) {
         await universityService.updateUniversity(editingId, formData);
-        setSuccess('University updated successfully');
+        message.success('University updated successfully');
       } else {
         await universityService.createUniversity(formData);
-        setSuccess('University created successfully');
+        message.success('University created successfully');
       }
       setFormData({ universityName: '', isActive: true });
       setEditingId(null);
       setShowForm(false);
       fetchUniversities();
     } catch (err) {
-      setError(err.message || 'Error saving university');
+      message.error(err.message || 'Error saving university');
       console.error(err);
     } finally {
       setLoading(false);
@@ -69,10 +70,10 @@ export default function UniversityManagement() {
       try {
         setLoading(true);
         await universityService.deleteUniversity(universityId);
-        setSuccess('University deleted successfully');
+        message.success('University deleted successfully');
         fetchUniversities();
       } catch (err) {
-        setError('Failed to delete university');
+        message.error('Failed to delete university');
         console.error(err);
       } finally {
         setLoading(false);
@@ -84,7 +85,7 @@ export default function UniversityManagement() {
     setFormData({ universityName: '', isActive: true });
     setEditingId(null);
     setShowForm(false);
-    setError('');
+    
   };
 
   return (
@@ -106,18 +107,8 @@ export default function UniversityManagement() {
         </div>
 
         {/* Notifications */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6 flex items-center gap-3">
-            <X className="w-5 h-5" />
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg mb-6 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5" />
-            {success}
-          </div>
-        )}
+        
+        
 
         {/* Form */}
         {showForm && (

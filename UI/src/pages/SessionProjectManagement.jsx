@@ -10,6 +10,7 @@ import { useTable } from '../services/tableService';
 import TablePagination from '../components/TablePagination';
 import AddSessionModal from '../components/AddSessionModal';
 import AddProjectModal from '../components/AddProjectModal';
+import message from '../services/messageService';
 
 export default function SessionProjectManagement() {
   const [searchParams] = useSearchParams();
@@ -29,7 +30,7 @@ export default function SessionProjectManagement() {
     isActive: true
   });
   const [sessionLoading, setSessionLoading] = useState(false);
-  const [success, setSuccess] = useState('');
+  
 
   // Define fetch function for useTable to load projects under selected session
   const fetchFn = useCallback(async (params) => {
@@ -82,7 +83,7 @@ export default function SessionProjectManagement() {
   const fetchSessions = async () => {
     try {
       setSessionLoading(true);
-      setError('');
+      
       const data = await apiCall('/session');
       setSessions(data || []);
       if (data && data.length > 0) {
@@ -110,12 +111,12 @@ export default function SessionProjectManagement() {
         })
       });
 
-      setSuccess(editingId ? 'Session updated successfully!' : 'Session created successfully!');
+      message.success(editingId ? 'Session updated successfully!' : 'Session created successfully!');
       fetchSessions();
       setFormData({ sessionName: '', projectName: '', isActive: true });
       setEditingId(null);
       setShowSessionForm(false);
-      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (err) {
       setError('Error saving session');
     }
@@ -141,12 +142,12 @@ export default function SessionProjectManagement() {
         })
       });
 
-      setSuccess(editingId ? 'Project updated successfully!' : 'Project created successfully!');
+      message.success(editingId ? 'Project updated successfully!' : 'Project created successfully!');
       refreshProjects();
       setFormData({ sessionName: '', projectName: '', isActive: true });
       setEditingId(null);
       setShowProjectForm(false);
-      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (err) {
       setError('Error saving project');
     }
@@ -265,16 +266,8 @@ export default function SessionProjectManagement() {
         </div>
 
         {/* Notifications */}
-        {error && (
-          <div className="bg-rose-50 border border-rose-100 text-rose-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in">
-            {success}
-          </div>
-        )}
+        
+        
 
         {/* Add / Edit Session Modal */}
         <AddSessionModal

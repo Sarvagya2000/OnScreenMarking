@@ -4,14 +4,15 @@ import roleService from '../services/roleService';
 import PermissionSelector from '../components/RoleManagement/PermissionSelector';
 import RoleStatistics from '../components/RoleManagement/RoleStatistics';
 import { useAuth } from '../context/AuthContext';
+import message from '../services/messageService';
 
 export default function RoleManagement() {
   const { hasPermission } = useAuth();
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  
+  
   
   // Inline Form States
   const [showForm, setShowForm] = useState(false);
@@ -61,7 +62,7 @@ export default function RoleManagement() {
         permissions: []
       });
       setError(null);
-      setSuccess(null);
+      message.success(null);
       setShowForm(true);
     }
   };
@@ -75,7 +76,7 @@ export default function RoleManagement() {
       permissions: role.permissionsList || []
     });
     setError(null);
-    setSuccess(null);
+    message.success(null);
     setShowForm(true);
     // Smooth scroll to form container
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -109,14 +110,14 @@ export default function RoleManagement() {
     try {
       setLoading(true);
       setError(null);
-      setSuccess(null);
+      message.success(null);
       
       if (editingRole) {
         await roleService.updateRole(editingRole.roleId, formValues);
-        setSuccess(`Role "${formValues.roleName}" updated successfully`);
+        message.success(`Role "${formValues.roleName}" updated successfully`);
       } else {
         await roleService.createRole(formValues);
-        setSuccess(`Role "${formValues.roleName}" created successfully`);
+        message.success(`Role "${formValues.roleName}" created successfully`);
       }
       
       setShowForm(false);
@@ -132,10 +133,10 @@ export default function RoleManagement() {
   const handleDeleteRole = async (roleId) => {
     if (window.confirm('Are you sure you want to delete this role?')) {
       try {
-        setSuccess(null);
+        message.success(null);
         setError(null);
         await roleService.deleteRole(roleId);
-        setSuccess('Role deleted successfully');
+        message.success('Role deleted successfully');
         await fetchRolesAndPermissions();
       } catch (err) {
         setError(err.message || 'Failed to delete role');
@@ -188,18 +189,8 @@ export default function RoleManagement() {
         </div>
 
         {/* Notifications */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6 flex items-center gap-3">
-            <X className="w-5 h-5" />
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg mb-6 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5" />
-            {success}
-          </div>
-        )}
+        
+        
 
         {/* Inline Form */}
         {showForm && (

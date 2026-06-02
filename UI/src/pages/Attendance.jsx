@@ -19,13 +19,14 @@ import {
 import * as XLSX from 'xlsx';
 import attendanceService from '../services/attendanceService';
 import userService from '../services/userService';
+import message from '../services/messageService';
 
 export default function Attendance() {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  
+  
 
   // File parsing states
   const [parsedData, setParsedData] = useState([]);
@@ -58,7 +59,7 @@ export default function Attendance() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      setError(null);
+      message.error(null);
       
       // Fetch users (examiners) for client-side validation
       const usersData = await userService.getAllUsers();
@@ -67,7 +68,7 @@ export default function Attendance() {
       // Fetch historical attendance records
       await fetchAttendanceLogs();
     } catch (err) {
-      setError(err.message || 'Failed to load initial data');
+      message.error(err.message || 'Failed to load initial data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -79,7 +80,7 @@ export default function Attendance() {
       const data = await attendanceService.getAllAttendance(filters);
       setAttendanceLogs(data.data || []);
     } catch (err) {
-      setError(err.message || 'Failed to load attendance logs');
+      message.error(err.message || 'Failed to load attendance logs');
     }
   };
 
@@ -117,13 +118,13 @@ export default function Attendance() {
   const processFile = (file) => {
     const fileExtension = file.name.split('.').pop().toLowerCase();
     if (fileExtension !== 'xlsx' && fileExtension !== 'xls' && fileExtension !== 'csv') {
-      setError('Please upload a valid Excel file (.xlsx, .xls) or CSV template.');
+      message.error('Please upload a valid Excel file (.xlsx, .xls) or CSV template.');
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    message.error(null);
+    message.success(null);
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -188,7 +189,7 @@ export default function Attendance() {
 
         validateParsedRows(formattedRows);
       } catch (err) {
-        setError(err.message || 'Failed to parse Excel file. Ensure it matches the template.');
+        message.error(err.message || 'Failed to parse Excel file. Ensure it matches the template.');
         console.error(err);
       } finally {
         setLoading(false);
@@ -244,7 +245,7 @@ export default function Attendance() {
     const invalidCount = parsedData.length - validRows.length;
 
     if (validRows.length === 0) {
-      setError("No valid rows found to import. Please correct the Excel sheet and try again.");
+      message.error("No valid rows found to import. Please correct the Excel sheet and try again.");
       return;
     }
 
@@ -257,8 +258,8 @@ export default function Attendance() {
 
     try {
       setImporting(true);
-      setError(null);
-      setSuccess(null);
+      message.error(null);
+      message.success(null);
 
       // Send valid rows to server
       const payload = validRows.map(row => ({
@@ -271,7 +272,7 @@ export default function Attendance() {
       const res = await attendanceService.bulkImportAttendance(payload);
       
       if (res.data?.success) {
-        setSuccess(`Successfully imported ${res.data.totalImported} attendance records!`);
+        message.success(`Successfully imported ${res.data.totalImported} attendance records!`);
         setShowPreview(false);
         setParsedData([]);
         await fetchInitialData();
@@ -279,7 +280,7 @@ export default function Attendance() {
         throw new Error(res.message || "Failed to complete bulk import.");
       }
     } catch (err) {
-      setError(err.message || "An error occurred during import.");
+      message.error(err.message || "An error occurred during import.");
     } finally {
       setImporting(false);
     }
@@ -297,13 +298,13 @@ export default function Attendance() {
     if (!window.confirm("Are you sure you want to delete this attendance record?")) return;
 
     try {
-      setError(null);
-      setSuccess(null);
+      message.error(null);
+      message.success(null);
       await attendanceService.deleteAttendance(attendanceId);
-      setSuccess("Attendance record deleted successfully.");
+      message.success("Attendance record deleted successfully.");
       await fetchAttendanceLogs({ status: statusFilter, date: dateFilter });
     } catch (err) {
-      setError(err.message || "Failed to delete record.");
+      message.error(err.message || "Failed to delete record.");
     }
   };
 
@@ -377,30 +378,8 @@ export default function Attendance() {
         </div>
 
         {/* Alerts */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-start gap-3 shadow-sm animate-fadeIn">
-            <AlertCircle className="w-5 h-5 mt-0.5 text-red-600 flex-shrink-0" />
-            <div className="flex-1">
-              <h4 className="font-bold">Error Encountered</h4>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
-            </div>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
-              <X size={18} />
-            </button>
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-start gap-3 shadow-sm animate-fadeIn">
-            <CheckCircle2 className="w-5 h-5 mt-0.5 text-green-600 flex-shrink-0" />
-            <div className="flex-1">
-              <h4 className="font-bold">Success</h4>
-              <p className="text-sm text-green-700 mt-1">{success}</p>
-            </div>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700">
-              <X size={18} />
-            </button>
-          </div>
-        )}
+        
+        
 
         {/* Stats Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

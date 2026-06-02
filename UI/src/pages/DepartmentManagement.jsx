@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import departmentService from '../services/departmentService';
@@ -17,6 +17,7 @@ import {
   XCircle, 
   CheckCircle2 
 } from 'lucide-react';
+import message from '../services/messageService';
 
 export default function DepartmentManagement() {
   const [searchParams] = useSearchParams();
@@ -56,6 +57,13 @@ export default function DepartmentManagement() {
     initialParams: { pageSize: 10 }
   });
 
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+      setError('');
+    }
+  }, [error, setError]);
+
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -64,7 +72,7 @@ export default function DepartmentManagement() {
     isActive: true
   });
 
-  const [success, setSuccess] = useState('');
+  
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(null);
 
@@ -82,13 +90,13 @@ export default function DepartmentManagement() {
     setFormData({ name: '', universityId: activeUniversityId || '', isActive: true });
     setEditingId(null);
     setShowForm(false);
-    setError('');
+    
   };
 
   const handleSuccess = (msg) => {
-    setSuccess(msg);
+    message.success(msg);
     refresh();
-    setTimeout(() => setSuccess(''), 3000);
+    
   };
 
   const handleAddCourse = (department) => {
@@ -171,18 +179,8 @@ export default function DepartmentManagement() {
         </div>
 
         {/* Notifications */}
-        {error && (
-          <div className="flex items-center gap-3 bg-rose-50 border border-rose-100 text-rose-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in">
-            <XCircle size={16} className="shrink-0 text-rose-500" />
-            <span>{error}</span>
-          </div>
-        )}
-        {success && (
-          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 text-emerald-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in">
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />
-            <span>{success}</span>
-          </div>
-        )}
+        
+        
 
         {/* Form Modal */}
         <AddDepartmentModal

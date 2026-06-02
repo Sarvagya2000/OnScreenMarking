@@ -21,6 +21,7 @@ import { decryptId, encryptId } from "../utils/encryption";
 import subjectService from "../services/subjectService";
 import projectService from "../services/projectService";
 import paperService from "../services/paperService";
+import message from '../services/messageService';
 
 export default function PapersManagement() {
   const [searchParams] = useSearchParams();
@@ -67,8 +68,8 @@ export default function PapersManagement() {
   const [allocationLoading, setAllocationLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  
+  
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -219,8 +220,8 @@ export default function PapersManagement() {
       // Refresh assignments
       const assigned = await apiCall(`/PaperExaminers/paper/${selectedPaper.paperId}`);
       setAssignedExaminers(assigned);
-      setSuccess("Examiner assigned successfully");
-      setTimeout(() => setSuccess(""), 3000);
+      message.success("Examiner assigned successfully");
+      
     } catch (err) {
       setError("Failed to assign examiner");
     }
@@ -259,8 +260,8 @@ export default function PapersManagement() {
 
       handleCancel();
       fetchPapers();
-      setSuccess("Paper saved successfully");
-      setTimeout(() => setSuccess(""), 3000);
+      message.success("Paper saved successfully");
+      
     } catch (err) {
       setError("Error saving paper");
     }
@@ -317,7 +318,7 @@ export default function PapersManagement() {
     setSelectedSubjects([]);
     setEditingId(null);
     setShowForm(false);
-    setError("");
+    
     fetchInitialData();
   };
 
@@ -367,18 +368,8 @@ export default function PapersManagement() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {/* University Sub-navigation Operations Hub */}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 flex items-center gap-3">
-            <X size={20} className="bg-red-100 p-1 rounded-full" />
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl mb-6 flex items-center gap-3">
-            <CheckCircle2 size={20} className="bg-green-100 p-1 rounded-full" />
-            {success}
-          </div>
-        )}
+        
+        
 
         {/* Form Container */}
         {showForm && (
@@ -501,7 +492,7 @@ export default function PapersManagement() {
                   if (!file) return;
 
                   setUploading(true);
-                  setError("");
+                  
                   const token = localStorage.getItem('token');
                   const formDataObj = new FormData();
                   formDataObj.append("file", file);
@@ -521,8 +512,8 @@ export default function PapersManagement() {
 
                     const res = await response.json();
                     setFormData(prev => ({ ...prev, questionPaperPdfUrl: res.url }));
-                    setSuccess("Question paper PDF uploaded successfully!");
-                    setTimeout(() => setSuccess(""), 3000);
+                    message.success("Question paper PDF uploaded successfully!");
+                    
                   } catch (err) {
                     setError("Failed to upload question paper PDF: " + err.message);
                   } finally {

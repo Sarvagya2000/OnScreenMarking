@@ -20,6 +20,7 @@ import {
   BookOpen, 
   Search
 } from 'lucide-react';
+import message from '../services/messageService';
 
 export default function CourseManagement() {
   const [searchParams] = useSearchParams();
@@ -29,7 +30,7 @@ export default function CourseManagement() {
 
   const [departments, setDepartments] = useState([]);
   const [allSubjects, setAllSubjects] = useState([]);
-  const [success, setSuccess] = useState('');
+  
 
   // Form State
   const [showFormModal, setShowFormModal] = useState(false);
@@ -78,6 +79,13 @@ export default function CourseManagement() {
     initialParams: { pageSize: 10 }
   });
 
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+      setError('');
+    }
+  }, [error, setError]);
+
   // Load static departments and subjects for selects with pageSize: 0 (return all)
   useEffect(() => {
     if (activeUniversityId) {
@@ -124,11 +132,11 @@ export default function CourseManagement() {
     }
 
     try {
-      setError('');
+      
       await courseService.deleteCourse(courseId);
-      setSuccess('Course deleted successfully!');
+      message.success('Course deleted successfully!');
       refresh();
-      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (err) {
       console.error(err);
       setError('Failed to delete course.');
@@ -397,9 +405,9 @@ export default function CourseManagement() {
         isOpen={showFormModal}
         onClose={() => setShowFormModal(false)}
         onSuccess={(msg) => {
-          setSuccess(msg);
+          message.success(msg);
           refresh();
-          setTimeout(() => setSuccess(''), 3000);
+          
         }}
         editingId={editingId}
         initialData={formData}
@@ -412,9 +420,9 @@ export default function CourseManagement() {
         isOpen={showAddSubjectModal}
         onClose={() => setShowAddSubjectModal(false)}
         onSuccess={(msg) => {
-          setSuccess(msg);
+          message.success(msg);
           refresh();
-          setTimeout(() => setSuccess(''), 3000);
+          
         }}
         activeUniversityId={activeUniversityId}
         departments={departments}
