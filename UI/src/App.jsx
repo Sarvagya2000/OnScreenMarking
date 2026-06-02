@@ -208,6 +208,7 @@ function AppRoutes() {
           element={hasPermission("VIEW_REPORTS") ? <Reports /> : <Navigate to="/" replace />} 
         />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
     </Routes>
   );

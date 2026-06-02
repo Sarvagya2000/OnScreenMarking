@@ -27,13 +27,28 @@ import { decryptId, encryptId } from '../utils/encryption';
 import { useBreadcrumb } from '../context/BreadcrumbContext';
 
 export default function SubjectConfig() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const encryptedProjectId = searchParams.get('projectId');
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
   const urlSubjectId = searchParams.get('subjectId') ? parseInt(decryptId(searchParams.get('subjectId')), 10) : null;
   const urlPaperId = searchParams.get('paperId') ? parseInt(decryptId(searchParams.get('paperId')), 10) : null;
   const { userType } = useAuth();
   const { setBreadcrumb } = useBreadcrumb();
+
+  const handleBackFromPapers = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('subjectId');
+    newParams.delete('paperId');
+    setSearchParams(newParams);
+    setSelectedSubject(null);
+  };
+
+  const handleBackFromSections = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('paperId');
+    setSearchParams(newParams);
+    setSelectedPaper(null);
+  };
 
   const [projectData, setProjectData] = useState(null);
   const [subjects, setSubjects] = useState([]);
@@ -538,7 +553,7 @@ export default function SubjectConfig() {
               <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => setSelectedSubject(null)}
+                    onClick={handleBackFromPapers}
                     className="p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl text-gray-600 transition-all active:scale-95"
                   >
                     <ArrowLeft className="w-6 h-6" />
@@ -591,7 +606,7 @@ export default function SubjectConfig() {
                   <FileText className="w-12 h-12 text-gray-300 mb-3" />
                   <p className="text-gray-400 font-bold text-lg">No papers found for this subject</p>
                   <button 
-                    onClick={() => setSelectedSubject(null)}
+                    onClick={handleBackFromPapers}
                     className="mt-4 text-blue-600 hover:text-blue-700 font-bold transition-all"
                   >
                     Go back to subjects
@@ -610,7 +625,7 @@ export default function SubjectConfig() {
               <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => setSelectedPaper(null)}
+                    onClick={handleBackFromSections}
                     className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 transition-all active:scale-95"
                   >
                     <ArrowLeft className="w-5 h-5" />

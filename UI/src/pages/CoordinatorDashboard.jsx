@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   BookOpen, 
@@ -28,6 +28,7 @@ import apiCall from '../services/api';
 import { encryptId } from '../utils/encryption';
 
 export default function CoordinatorDashboard() {
+  const navigate = useNavigate();
   const { userType, universityId: userUniversityId } = useAuth();
   const [university, setUniversity] = useState(null);
   const [sessions, setSessions] = useState([]);
@@ -35,6 +36,7 @@ export default function CoordinatorDashboard() {
   
   const [stats, setStats] = useState({
     departments: 0,
+    courses: 0,
     subjects: 0,
     projects: 0,
     totalScripts: 0,
@@ -65,8 +67,6 @@ export default function CoordinatorDashboard() {
     }
   };
 
-  const [departmentsList, setDepartmentsList] = useState([]);
-
   useEffect(() => {
     fetchUniversityData();
   }, [selectedSessionId]);
@@ -90,18 +90,17 @@ export default function CoordinatorDashboard() {
         setSelectedSessionId(active.sessionId.toString());
       }
       
-      // 3. Fetch departments and subjects stats
-      const deptData = await apiCall(`/department?universityId=${uniData.universityId}`);
-      const departmentsArray = Array.isArray(deptData) ? deptData : (deptData?.items || []);
-      setDepartmentsList(departmentsArray);
-      
-      // 4. Fetch all papers
-      const papersData = await apiCall(`/papers?universityId=${uniData.universityId}`);
-      
-      // 5. Fetch all scripts in the system
-      const scripts = await apiCall('/scripts?limit=5000');
+      // 3. Fetch consolidated counts from stats endpoint
+      let countsData = { departments: 0, courses: 0, subjects: 0, scripts: 0, completedMarking: 0 };
+      try {
+        countsData = await apiCall(`/stats/counts?universityId=${uniData.universityId}`);
+      } catch (statsErr) {
+        console.error('Failed to fetch counts from stats API:', statsErr);
+      }
 
-      // 6. Fetch all allocations
+
+      // 5. Fetch all papers
+      // 5. Fetch all allocations
       let allocationsData = [];
       try {
         allocationsData = await apiCall('/allocation');
@@ -109,46 +108,29 @@ export default function CoordinatorDashboard() {
         console.error('Failed to fetch allocations:', allocErr);
       }
 
-      // Calculate project-wise statistics
+      // Calculate project-wise statistics from consolidated stats response
       const statsMap = {};
-      const rawProjects = uniData.projects || [];
-      
-      rawProjects.forEach(proj => {
-        const projPapers = papersData.filter(p => p.projectId === proj.projectId);
-        const projPaperIds = projPapers.map(p => p.paperId);
-        const projScripts = scripts.filter(s => projPaperIds.includes(s.paperId));
-        
-        const total = projScripts.length;
-        const completed = projScripts.filter(s => s.status === 'completed').length;
-        const allocated = projScripts.filter(s => s.status === 'allocated' || s.status === 'marking').length;
-        const pending = projScripts.filter(s => s.status === 'pending' || (!s.allocatedUserId && s.status !== 'completed')).length;
-
-        statsMap[proj.projectId] = {
-          papersCount: projPapers.length,
-          totalScripts: total,
-          pendingScripts: pending,
-          allocatedScripts: allocated,
-          completedScripts: completed
+      const apiProjectsStats = countsData.projects || [];
+      apiProjectsStats.forEach(p => {
+        statsMap[p.projectId] = {
+          papersCount: p.papersCount,
+          totalScripts: p.totalScripts,
+          pendingScripts: p.pendingScripts,
+          allocatedScripts: p.allocatedScripts,
+          completedScripts: p.completedScripts
         };
       });
       setProjectStats(statsMap);
 
       // Filter projects by selected session
+      const rawProjects = uniData.projects || [];
       const sessIdNum = parseInt(selectedSessionId || '0', 10);
       const filteredProj = sessIdNum 
         ? rawProjects.filter(p => p.sessionId === sessIdNum)
         : rawProjects;
       setActiveProjects(filteredProj);
       
-      // Compute unallocated scripts globally
-      const universityPaperIds = papersData.map(p => p.paperId);
-      const universityScripts = scripts.filter(s => universityPaperIds.includes(s.paperId));
-      const totalScriptsCount = universityScripts.length;
-      const pendingCount = universityScripts.filter(s => s.status === 'pending').length;
-      const assignedCount = universityScripts.filter(s => s.status === 'allocated' || s.status === 'marking').length;
-      const completedCount = universityScripts.filter(s => s.status === 'completed').length;
-      
-      setUnassignedCount(pendingCount);
+      setUnassignedCount(countsData.unassignedScriptsCount);
 
       // Load examiners workload
       const usersData = await apiCall(`/users?universityId=${uniData.universityId}`);
@@ -171,12 +153,13 @@ export default function CoordinatorDashboard() {
       setExaminers(examinersWithWorkload);
 
       setStats({
-        departments: departmentsArray.length,
-        subjects: departmentsArray.reduce((sum, dept) => sum + (dept.departmentSubjects?.length || 0), 0),
+        departments: countsData.departments,
+        courses: countsData.courses,
+        subjects: countsData.subjects,
         projects: filteredProj.length,
-        totalScripts: totalScriptsCount,
-        assignedScripts: assignedCount,
-        completedScripts: completedCount,
+        totalScripts: countsData.scripts,
+        assignedScripts: 0,
+        completedScripts: countsData.completedMarking,
         users: usersData?.length || 0
       });
     } catch (err) {
@@ -191,7 +174,7 @@ export default function CoordinatorDashboard() {
     return (
       <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center gap-3">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-650 border-t-transparent"></div>
-        <p className="text-slate-500 font-bold text-xs uppercase tracking-wider animate-pulse">Synchronizing Cockpit...</p>
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-wider animate-pulse">Synchronizing...</p>
       </div>
     );
   }
@@ -202,7 +185,7 @@ export default function CoordinatorDashboard() {
         <div className="bg-white rounded-2xl p-8 shadow-xl max-w-md w-full border border-red-100">
           <div className="flex items-center gap-3 mb-4 text-red-600">
             <AlertCircle size={28} />
-            <h2 className="text-lg font-bold">Cockpit Synch Failure</h2>
+            <h2 className="text-lg font-bold"> Synch Failure</h2>
           </div>
           <p className="text-slate-605 text-sm mb-6">{error}</p>
           <button 
@@ -254,7 +237,7 @@ export default function CoordinatorDashboard() {
         <div>
           <div className="flex items-center gap-2 text-blue-600 font-semibold mb-1">
             <LayoutDashboard size={14} />
-            <span className="uppercase tracking-widest text-[9px] font-extrabold">Board Cockpit</span>
+            <span className="uppercase tracking-widest text-[9px] font-extrabold">Board </span>
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
             {university?.universityName} Portal
@@ -284,7 +267,7 @@ export default function CoordinatorDashboard() {
               <Activity size={14} />
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-slate-400 leading-none mb-0.5">Cockpit Link</p>
+              <p className="text-[9px] uppercase font-bold text-slate-400 leading-none mb-0.5"> Link</p>
               <p className="text-xs font-bold text-slate-950">Active / Encrypted</p>
             </div>
           </div>
@@ -310,20 +293,44 @@ export default function CoordinatorDashboard() {
             </div>
 
             {/* Micro Metrics Rows */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div 
+                onClick={() => navigate('/masters')}
+                className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between cursor-pointer hover:border-blue-400 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5"
+              >
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Configured Depts</span>
                 <span className="text-base font-bold text-slate-900 mt-1">{stats.departments}</span>
               </div>
-              <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+              <div 
+                onClick={() => navigate('/courses')}
+                className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between cursor-pointer hover:border-blue-400 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5"
+              >
+                <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Courses</span>
+                <span className="text-base font-bold text-slate-900 mt-1">{stats.courses}</span>
+              </div>
+              <div 
+                onClick={() => navigate('/subjects')}
+                className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between cursor-pointer hover:border-blue-400 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5"
+              >
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Subjects</span>
                 <span className="text-base font-bold text-slate-900 mt-1">{stats.subjects}</span>
               </div>
-              <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+              <div 
+                onClick={() => {
+                  const activeProjId = selectedProjectId || (activeProjects.length > 0 ? activeProjects[0].projectId.toString() : null);
+                  if (activeProjId) {
+                    navigate(userType === 'admin'
+                      ? `/admin/project-dashboard?projectId=${encryptId(activeProjId)}`
+                      : `/project-dashboard?projectId=${encryptId(activeProjId)}`
+                    );
+                  }
+                }}
+                className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between cursor-pointer hover:border-blue-400 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5"
+              >
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Exam Scripts</span>
                 <span className="text-base font-bold text-slate-900 mt-1">{stats.totalScripts}</span>
               </div>
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-xl text-white flex flex-col justify-between shadow-md shadow-blue-100">
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-xl text-white flex flex-col justify-between shadow-md shadow-blue-100 select-none">
                 <span className="text-[9px] uppercase font-bold text-blue-100 tracking-wider">Completed Marking</span>
                 <span className="text-base font-bold mt-1">
                   {stats.completedScripts} <span className="text-[10px] font-normal text-blue-200">/ {stats.totalScripts}</span>
@@ -442,7 +449,7 @@ export default function CoordinatorDashboard() {
                             ? 'text-indigo-650 animate-pulse' 
                             : 'text-slate-400 group-hover:text-indigo-500'
                         }`}>
-                          {isSelected ? '✓ Selected (Cockpit Unlocked)' : '💡 Click card to open project sidebar'}
+                          {isSelected ? '✓ Selected ( Unlocked)' : '💡 Click card to open project sidebar'}
                         </span>
                       </div>
                     </div>
@@ -527,7 +534,7 @@ export default function CoordinatorDashboard() {
           
           {/* Quick Action Navigation Dock */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Active Evaluation Cockpit</h3>
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Active Evaluation</h3>
             
             <div className="flex flex-col gap-1.5">
               <SidebarLink 

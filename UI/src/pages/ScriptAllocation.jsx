@@ -24,6 +24,7 @@ export default function ScriptAllocation() {
   const encryptedProjectId = searchParams.get('projectId');
   const projectId = encryptedProjectId ? decryptId(encryptedProjectId) : null;
   const sessionId = searchParams.get('sessionId');
+  const paperIdFromUrl = searchParams.get('paperId');
   const { userType, universityId: userUniversityId } = useAuth();
   const universityIdFromUrl = searchParams.get('universityId');
   const activeUniversityId = userType === 'coordinator' ? userUniversityId : universityIdFromUrl;
@@ -59,7 +60,16 @@ export default function ScriptAllocation() {
       } else {
         papersData = await paperService.getAllPapers(activeUniversityId);
       }
-      setPapers(papersData || []);
+      const papersList = papersData || [];
+      setPapers(papersList);
+
+      // Auto-select paper if paperId is in URL
+      if (paperIdFromUrl && papersList.length > 0) {
+        const matchedPaper = papersList.find(p => p.paperId.toString() === paperIdFromUrl.toString());
+        if (matchedPaper) {
+          handlePaperSelect(matchedPaper);
+        }
+      }
     } catch (err) {
       setError('Failed to fetch papers');
       console.error(err);
