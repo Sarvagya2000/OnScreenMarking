@@ -51,7 +51,7 @@ export default function PapersManagement() {
     paperName: "",
     paperNumber: 1,
     maxMarks: 100,
-    totalQuestions: 0,
+    totalQuestions: "",
     description: "",
     catchNo: "",
     projectId: projectId || "",
@@ -246,17 +246,18 @@ export default function PapersManagement() {
     }
 
     try {
-      const method = editingId ? "PUT" : "POST";
       const payload = {
         ...formData,
         subjectIds: selectedSubjects.map(id => parseInt(id, 10)),
         projectId: parseInt(formData.projectId, 10),
         paperNumber: parseInt(formData.paperNumber, 10),
         maxMarks: parseFloat(formData.maxMarks),
-        totalQuestions: parseInt(formData.totalQuestions, 10),
+        totalQuestions: formData.totalQuestions === "" ? 0 : parseInt(formData.totalQuestions, 10),
       };
 
-      const result = await paperService.updatePaper(editingId)
+      const result = editingId
+        ? await paperService.updatePaper(editingId, payload)
+        : await paperService.createPaper(payload);
 
       handleCancel();
       fetchPapers();
@@ -308,7 +309,7 @@ export default function PapersManagement() {
       paperName: "",
       paperNumber: 1,
       maxMarks: 100,
-      totalQuestions: 0,
+      totalQuestions: "",
       description: "",
       catchNo: "",
       projectId: projectId || "",

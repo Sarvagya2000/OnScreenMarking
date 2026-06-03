@@ -111,6 +111,17 @@ namespace API.Controllers
                 if (marking == null)
                     return NotFound(new { success = false, message = "Marking not found" });
 
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || marking.ExaminerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You do not have permission to view this marking." });
+                    }
+                }
+
                 var markingDto = new MarkingDto
                 {
                     Id = marking.Id,
@@ -221,6 +232,17 @@ namespace API.Controllers
         {
             try
             {
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || examinerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You can only view your own markings." });
+                    }
+                }
+
                 var query = _context.Markings
                     .Where(m => m.ExaminerId == examinerId)
                     .AsQueryable();
@@ -276,6 +298,17 @@ namespace API.Controllers
                 if (marking == null)
                     return NotFound(new { success = false, message = "Marking not found for this script" });
 
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || marking.ExaminerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You do not have permission to view this marking." });
+                    }
+                }
+
                 var markingDto = new MarkingDto
                 {
                     Id = marking.Id,
@@ -316,6 +349,17 @@ namespace API.Controllers
 
                 if (marking == null)
                     return NotFound(new { success = false, message = "Marking not found" });
+
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || marking.ExaminerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You do not have permission to view this marking." });
+                    }
+                }
 
                 var sections = marking.Script.Paper.Sections.Select(s => new
                 {
@@ -391,6 +435,12 @@ namespace API.Controllers
 
                 if (marking == null)
                     return NotFound(new { success = false, message = "Marking not found" });
+
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+                if (string.IsNullOrEmpty(loggedInUserIdStr) || marking.ExaminerId != int.Parse(loggedInUserIdStr))
+                {
+                    return StatusCode(403, new { success = false, message = "You do not have permission to modify this marking." });
+                }
 
                 if (marking.Status == "submitted")
                     return BadRequest(new { success = false, message = "Cannot update submitted marking" });
@@ -533,6 +583,21 @@ namespace API.Controllers
         {
             try
             {
+                var marking = await _context.Markings.FindAsync(markingId);
+                if (marking == null)
+                    return NotFound(new { success = false, message = "Marking not found" });
+
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || marking.ExaminerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You do not have permission to view this marking's question marks." });
+                    }
+                }
+
                 var questionMarks = await _context.QuestionMarks
                     .Where(qm => qm.MarkingId == markingId)
                     .Include(qm => qm.Question)

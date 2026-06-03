@@ -29,6 +29,18 @@ namespace API.Controllers
         {
             try
             {
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr))
+                    {
+                        return Unauthorized(new { success = false, message = "Invalid token claims" });
+                    }
+                    examinerId = int.Parse(loggedInUserIdStr);
+                }
+
                 var query = _context.Allocations.AsQueryable();
 
                 if (examinerId.HasValue)
@@ -71,6 +83,17 @@ namespace API.Controllers
 
                 if (allocation == null)
                     return NotFound(new { success = false, message = "Allocation not found" });
+
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || allocation.ExaminerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You can only view your own allocations." });
+                    }
+                }
 
                 return Ok(allocation);
             }
@@ -144,6 +167,12 @@ namespace API.Controllers
                 if (allocation == null)
                     return NotFound(new { success = false, message = "Allocation not found" });
 
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+                if (string.IsNullOrEmpty(loggedInUserIdStr) || allocation.ExaminerId != int.Parse(loggedInUserIdStr))
+                {
+                    return StatusCode(403, new { success = false, message = "You can only start marking your own allocations." });
+                }
+
                 if (allocation.Status != "allocated")
                     return BadRequest(new { success = false, message = "Allocation is not in allocated status" });
 
@@ -173,6 +202,12 @@ namespace API.Controllers
 
                 if (allocation == null)
                     return NotFound(new { success = false, message = "Allocation not found" });
+
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+                if (string.IsNullOrEmpty(loggedInUserIdStr) || allocation.ExaminerId != int.Parse(loggedInUserIdStr))
+                {
+                    return StatusCode(403, new { success = false, message = "You can only submit marking for your own allocations." });
+                }
 
                 if (allocation.Status != "in_progress")
                     return BadRequest(new { success = false, message = "Allocation is not in progress" });
@@ -245,6 +280,17 @@ namespace API.Controllers
         {
             try
             {
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || examinerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You can only view your own allocations." });
+                    }
+                }
+
                 var allocations = await _context.Allocations
                     .Where(a => a.ExaminerId == examinerId)
                     .Include(a => a.Script)
@@ -272,6 +318,17 @@ namespace API.Controllers
 
                 if (allocation == null)
                     return NotFound(new { success = false, message = "No active allocation found for this script" });
+
+                var loggedInUserType = User.FindFirst("userType")?.Value;
+                var loggedInUserIdStr = User.FindFirst("id")?.Value;
+
+                if (loggedInUserType == "examiner")
+                {
+                    if (string.IsNullOrEmpty(loggedInUserIdStr) || allocation.ExaminerId != int.Parse(loggedInUserIdStr))
+                    {
+                        return StatusCode(403, new { success = false, message = "You can only view allocations assigned to you." });
+                    }
+                }
 
                 return Ok(allocation);
             }

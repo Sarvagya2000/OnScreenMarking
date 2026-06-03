@@ -18,6 +18,7 @@ const Navbar = () => {
       links.push({ label: 'Dashboard', path: '/admin/dashboard' });
       links.push({ label: 'Universities', path: '/admin/universities' });
       links.push({ label: 'Colleges', path: '/admin/colleges' });
+      links.push({ label: 'Question Types', path: '/admin/question-types' });
       if (hasPermission("READ_ROLE")) {
         links.push({ label: 'Roles', path: '/admin/role-management' });
       }

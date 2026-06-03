@@ -18,7 +18,7 @@ import {
   Filter,
   Users
 } from 'lucide-react';
-import { subjectService, sectionService, paperService } from '../services';
+import { subjectService, sectionService, paperService, questionTypeService } from '../services';
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -77,6 +77,22 @@ export default function SubjectConfig() {
   
   const [loading, setLoading] = useState(false);
 
+  const [dbQuestionTypes, setDbQuestionTypes] = useState(['MCQ', 'SA', 'LA']);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [showNewTypeInput, setShowNewTypeInput] = useState(false);
+  const [isSavingNewType, setIsSavingNewType] = useState(false);
+
+  const fetchQuestionTypes = async () => {
+    try {
+      const data = await questionTypeService.getAllQuestionTypes();
+      if (data && data.length > 0) {
+        setDbQuestionTypes(data.map(d => d.questionTypeName));
+      }
+    } catch (err) {
+      console.error("Failed to load question types", err);
+    }
+  };
+
   useEffect(() => {
     if (projectId) {
       // Set breadcrumb with full path
@@ -106,6 +122,7 @@ export default function SubjectConfig() {
       ]);
       fetchProjectData();
       fetchSubjects();
+      fetchQuestionTypes();
     }
   }, [projectId, encryptedProjectId, userType, searchParams]);
 
@@ -784,7 +801,11 @@ export default function SubjectConfig() {
                         <div className="space-y-1">
                           <p className="text-[10px] text-blue-600 font-semibold mb-1">Set Type for All Questions:</p>
                           <select
-                            value=""
+                            value={
+                              questions.length > 0 && questions.every(q => q.type && q.type === questions[0].type)
+                                ? questions[0].type
+                                : ""
+                            }
                             onChange={(e) => {
                               const selectedType = e.target.value;
                               if (selectedType) {
@@ -794,10 +815,64 @@ export default function SubjectConfig() {
                             className="w-full bg-white px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 shadow-sm transition-all"
                           >
                             <option value="">Choose Type...</option>
-                            {['MCQ', 'SA', 'LA'].map(type => (
+                            {dbQuestionTypes.map(type => (
                               <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
+                          
+                          {showNewTypeInput ? (
+                            <div className="flex gap-2 mt-2">
+                              <input
+                                type="text"
+                                value={newTypeName}
+                                onChange={(e) => setNewTypeName(e.target.value)}
+                                className="flex-grow bg-white px-2 py-1.5 rounded-lg border border-blue-200 text-xs font-semibold text-gray-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                                placeholder="Type name (e.g. MCQ)"
+                                disabled={isSavingNewType}
+                              />
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!newTypeName.trim()) return;
+                                  try {
+                                    setIsSavingNewType(true);
+                                    setError('');
+                                    setSuccess('');
+                                    await questionTypeService.createQuestionType({ questionTypeName: newTypeName.trim().toUpperCase() });
+                                    setSuccess('Question type added successfully');
+                                    setNewTypeName('');
+                                    setShowNewTypeInput(false);
+                                    await fetchQuestionTypes();
+                                  } catch (err) {
+                                    setError(err.message || 'Failed to create question type');
+                                    setTimeout(() => setError(''), 4000);
+                                  } finally {
+                                    setIsSavingNewType(false);
+                                  }
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs font-bold"
+                                disabled={isSavingNewType}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowNewTypeInput(false)}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-bold"
+                                disabled={isSavingNewType}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowNewTypeInput(true)}
+                              className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 mt-1.5"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add New Type
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -844,7 +919,7 @@ export default function SubjectConfig() {
                                       }`}
                                     >
                                       <option value="">Type</option>
-                                      {['MCQ', 'SA', 'LA'].map(type => (
+                                      {dbQuestionTypes.map(type => (
                                         <option key={type} value={type}>{type}</option>
                                       ))}
                                     </select>

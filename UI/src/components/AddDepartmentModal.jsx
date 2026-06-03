@@ -28,8 +28,8 @@ export default function AddDepartmentModal({
         setError('');
 
         // 1. Fetch all courses for this university
-        const uniCourses = await courseService.getAllCourses(null, activeUniversityId);
-        setCourses(uniCourses);
+        const response = await courseService.getAllCourses(null, activeUniversityId);
+        setCourses(response?.items || response || []);
 
         if (editingId) {
           setName(initialData?.name || '');
@@ -175,8 +175,8 @@ export default function AddDepartmentModal({
               </label>
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 max-h-48 overflow-y-auto">
                 {courses.length === 0 ? (
-                  <p className="text-xs text-rose-500 font-bold py-2 text-center">
-                    No courses exist. Please add courses in the Courses Management screen first.
+                  <p className="text-xs text-slate-400 py-2 text-center font-semibold">
+                    No courses available
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

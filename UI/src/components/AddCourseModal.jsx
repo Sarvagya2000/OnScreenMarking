@@ -32,8 +32,8 @@ export default function AddCourseModal({
 
         // 1. Fetch all subjects for this university
         if (activeUniversityId) {
-          const uniSubjects = await subjectService.getSubjectByUniversity(activeUniversityId);
-          setSubjects(uniSubjects);
+          const response = await subjectService.getSubjectByUniversity(activeUniversityId);
+          setSubjects(response?.items || response || []);
         }
 
         if (editingId && initialData) {
@@ -221,8 +221,8 @@ export default function AddCourseModal({
               </label>
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 max-h-40 overflow-y-auto">
                 {subjects.length === 0 ? (
-                  <p className="text-xs text-rose-500 font-bold py-2 text-center">
-                    No subjects exist. Please add subjects in the Subjects Management screen first.
+                  <p className="text-xs text-slate-400 py-2 text-center font-semibold">
+                    No subjects available
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from 'react-router-dom';
 
 import { BreadcrumbProvider } from './context/BreadcrumbContext';
@@ -40,6 +42,7 @@ import UsersManagement from './pages/UsersManagement';
 import RoleManagement from './pages/RoleManagement';
 import Attendance from './pages/Attendance';
 import ScriptAllocation from './pages/ScriptAllocation';
+import QuestionTypeMaster from './pages/QuestionTypeMaster';
 
 function AppRoutes() {
   const { isAuthenticated, userType, loading, hasPermission } = useAuth();
@@ -62,7 +65,7 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
-      {/* Authenticated Dashboard Routes */}
+      {/* Main App Layout */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           {/* Dynamic Home Redirect */}
@@ -206,9 +209,20 @@ function AppRoutes() {
   );
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname, search]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <AuthProvider>
         <BreadcrumbProvider>
           <AppRoutes />

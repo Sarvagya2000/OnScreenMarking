@@ -25,6 +25,7 @@ namespace API.Controllers
 
         // GET: api/attendance
         [HttpGet]
+        [Authorize(Roles = "admin,coordinator")]
         public async Task<ActionResult> GetAllAttendance([FromQuery] string? status, [FromQuery] string? date)
         {
             try
@@ -70,6 +71,7 @@ namespace API.Controllers
 
         // POST: api/attendance/bulk-import
         [HttpPost("bulk-import")]
+        [Authorize(Roles = "admin,coordinator")]
         public async Task<ActionResult> BulkImportAttendance([FromBody] List<BulkImportAttendanceRequest> requests)
         {
             try
@@ -164,6 +166,7 @@ namespace API.Controllers
 
         // DELETE: api/attendance/{id}
         [HttpDelete("{id}")]
+        [Authorize(Roles = "admin,coordinator")]
         public async Task<IActionResult> DeleteAttendance(int id)
         {
             try

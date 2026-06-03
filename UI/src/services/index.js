@@ -4,3 +4,4 @@ export { default as sectionService } from './sectionService';
 export { default as paperService } from './paperService';
 export { default as courseService } from './courseService';
 export { default as collegeService } from './collegeService';
+export { default as questionTypeService } from './questionTypeService';
