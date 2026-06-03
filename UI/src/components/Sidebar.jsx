@@ -29,6 +29,7 @@ const Sidebar = () => {
       items.push({ icon: <BookOpen size={20} />, label: 'Subjects', path: '/admin/subjects' });
       items.push({ icon: <Calendar size={20} />, label: 'Sessions & Projects', path: '/admin/sessions' });
       items.push({ icon: <FileText size={20} />, label: 'Papers', path: papersPath });
+      items.push({ icon: <Layers size={20} />, label: 'Question Types', path: '/admin/question-types' });
       
       if (hasPermission("READ_ALLOCATION")) {
         items.push({ icon: <Zap size={20} />, label: 'Script Allocation', path: allocationPath });
@@ -50,6 +51,7 @@ const Sidebar = () => {
       items.push({ icon: <BookOpen size={20} />, label: 'Subjects', path: '/subjects' });
       items.push({ icon: <Calendar size={20} />, label: 'Sessions & Projects', path: '/sessions' });
       items.push({ icon: <FileText size={20} />, label: 'Papers', path: papersPath });
+      items.push({ icon: <Layers size={20} />, label: 'Question Types', path: '/admin/question-types' });
 
       if (hasPermission("READ_ALLOCATION")) {
         items.push({ icon: <Zap size={20} />, label: 'Script Allocation', path: allocationPath });

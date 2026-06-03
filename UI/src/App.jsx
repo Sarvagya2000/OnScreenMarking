@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from 'react-router-dom';
 
 import { BreadcrumbProvider } from './context/BreadcrumbContext';
@@ -39,6 +41,7 @@ import UsersManagement from './pages/UsersManagement';
 import RoleManagement from './pages/RoleManagement';
 import Attendance from './pages/Attendance';
 import ScriptAllocation from './pages/ScriptAllocation';
+import QuestionTypeMaster from './pages/QuestionTypeMaster';
 
 function AppRoutes() {
   const { userType, loading, hasPermission } = useAuth();
@@ -75,147 +78,164 @@ function AppRoutes() {
       <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
       {/* Main App Layout */}
-      <Route element={<Layout />}>
-        {/* Dynamic Home Redirect */}
-        <Route 
-          path="/" 
-          element={
-            userType === 'admin' 
-              ? <Navigate to="/admin/dashboard" replace /> 
-              : userType === 'coordinator' 
-              ? <Navigate to="/coordinator/dashboard" replace /> 
-              : <Home />
-          } 
-        />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          {/* Dynamic Home Redirect */}
+          <Route 
+            path="/" 
+            element={
+              userType === 'admin' 
+                ? <Navigate to="/admin/dashboard" replace /> 
+                : userType === 'coordinator' 
+                ? <Navigate to="/coordinator/dashboard" replace /> 
+                : <Home />
+            } 
+          />
 
-        {/* Dashboard Routes */}
-        <Route 
-          path="/admin/dashboard" 
-          element={userType === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/coordinator/dashboard" 
-          element={userType === 'coordinator' ? <CoordinatorDashboard /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/project-dashboard" 
-          element={userType === 'admin' ? <ProjectDashboard /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/project-dashboard" 
-          element={userType === 'coordinator' ? <ProjectDashboard /> : <Navigate to="/" replace />} 
-        />
+          {/* Dashboard Routes */}
+          <Route 
+            path="/admin/dashboard" 
+            element={userType === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/coordinator/dashboard" 
+            element={userType === 'coordinator' ? <CoordinatorDashboard /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/project-dashboard" 
+            element={userType === 'admin' ? <ProjectDashboard /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/project-dashboard" 
+            element={userType === 'coordinator' ? <ProjectDashboard /> : <Navigate to="/" replace />} 
+          />
 
-        {/* Dynamic Permission Guided Routes */}
-        <Route 
-          path="/admin/universities" 
-          element={userType === 'admin' ? <UniversityManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/colleges" 
-          element={userType === 'admin' ? <CollegeManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/masters" 
-          element={userType === 'admin' ? <DepartmentManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/masters" 
-          element={userType === 'coordinator' ? <DepartmentManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/courses" 
-          element={userType === 'admin' ? <CourseManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/courses" 
-          element={userType === 'coordinator' ? <CourseManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/subjects" 
-          element={userType === 'admin' ? <SubjectManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/subjects" 
-          element={userType === 'coordinator' ? <SubjectManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/sessions" 
-          element={userType === 'admin' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/projects" 
-          element={userType === 'admin' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/sessions" 
-          element={userType === 'coordinator' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/projects" 
-          element={userType === 'coordinator' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/papers" 
-          element={userType === 'admin' ? <PapersManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/papers" 
-          element={userType === 'coordinator' ? <PapersManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/subject-config" 
-          element={userType === 'admin' ? <SubjectConfig /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/subject-config" 
-          element={userType === 'examiner' || userType === 'coordinator' ? <SubjectConfig /> : <Navigate to="/" replace />} 
-        />
+          {/* Dynamic Permission Guided Routes */}
+          <Route 
+            path="/admin/universities" 
+            element={userType === 'admin' ? <UniversityManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/colleges" 
+            element={userType === 'admin' ? <CollegeManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/question-types" 
+            element={userType === 'admin' || userType === 'coordinator' ? <QuestionTypeMaster /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/masters" 
+            element={userType === 'admin' ? <DepartmentManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/masters" 
+            element={userType === 'coordinator' ? <DepartmentManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/courses" 
+            element={userType === 'admin' ? <CourseManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/courses" 
+            element={userType === 'coordinator' ? <CourseManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/subjects" 
+            element={userType === 'admin' ? <SubjectManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/subjects" 
+            element={userType === 'coordinator' ? <SubjectManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/sessions" 
+            element={userType === 'admin' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/projects" 
+            element={userType === 'admin' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/sessions" 
+            element={userType === 'coordinator' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/projects" 
+            element={userType === 'coordinator' ? <SessionProjectManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/papers" 
+            element={userType === 'admin' ? <PapersManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/papers" 
+            element={userType === 'coordinator' ? <PapersManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/subject-config" 
+            element={userType === 'admin' ? <SubjectConfig /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/subject-config" 
+            element={userType === 'examiner' || userType === 'coordinator' ? <SubjectConfig /> : <Navigate to="/" replace />} 
+          />
 
-        {/* Dynamic Permissions Controlled Routes */}
-        <Route 
-          path="/admin/users" 
-          element={hasPermission("READ_USER") ? <UsersManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/role-management" 
-          element={hasPermission("READ_ROLE") ? <RoleManagement /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/attendance" 
-          element={hasPermission("VIEW_LOGS") ? <Attendance /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/admin/allocate-scripts" 
-          element={hasPermission("READ_ALLOCATION") ? <ScriptAllocation /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/allocate-scripts" 
-          element={hasPermission("READ_ALLOCATION") ? <ScriptAllocation /> : <Navigate to="/" replace />} 
-        />
+          {/* Dynamic Permissions Controlled Routes */}
+          <Route 
+            path="/admin/users" 
+            element={hasPermission("READ_USER") ? <UsersManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/role-management" 
+            element={hasPermission("READ_ROLE") ? <RoleManagement /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/attendance" 
+            element={hasPermission("VIEW_LOGS") ? <Attendance /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/admin/allocate-scripts" 
+            element={hasPermission("READ_ALLOCATION") ? <ScriptAllocation /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/allocate-scripts" 
+            element={hasPermission("READ_ALLOCATION") ? <ScriptAllocation /> : <Navigate to="/" replace />} 
+          />
 
-        {/* Examiner Routes */}
-        <Route 
-          path="/scripts" 
-          element={hasPermission("READ_SCRIPT") ? <Scripts /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/marking" 
-          element={hasPermission("READ_MARKING") ? <ExaminerMarking /> : <Navigate to="/" replace />} 
-        />
-        <Route 
-          path="/reports" 
-          element={hasPermission("VIEW_REPORTS") ? <Reports /> : <Navigate to="/" replace />} 
-        />
-        <Route path="/settings" element={<Settings />} />
+          {/* Examiner Routes */}
+          <Route 
+            path="/scripts" 
+            element={hasPermission("READ_SCRIPT") ? <Scripts /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/marking" 
+            element={hasPermission("READ_MARKING") ? <ExaminerMarking /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/reports" 
+            element={hasPermission("VIEW_REPORTS") ? <Reports /> : <Navigate to="/" replace />} 
+          />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
       </Route>
     </Routes>
   );
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname, search]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <AuthProvider>
         <BreadcrumbProvider>
           <AppRoutes />

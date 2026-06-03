@@ -35,6 +35,7 @@ namespace API.Data
         public DbSet<Invitation> Invitations { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Attendance> Attendances { get; set; }
+        public DbSet<QuestionType> QuestionTypes { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -311,6 +312,10 @@ namespace API.Data
                 .WithMany()
                 .HasForeignKey(a => a.ExaminerId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // QuestionType configuration
+            modelBuilder.Entity<QuestionType>()
+                .HasKey(qt => qt.QuestionTypeId);
         }
     }
 }

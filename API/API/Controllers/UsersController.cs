@@ -36,6 +36,59 @@ namespace API.Controllers
             return role.PermissionsList.Contains(permission);
         }
 
+        [HttpGet("me")]
+        public async Task<ActionResult<UserDto>> GetMe()
+        {
+            try
+            {
+                var userIdStr = User.FindFirst("id")?.Value;
+                if (string.IsNullOrEmpty(userIdStr))
+                {
+                    return Unauthorized(new { success = false, message = "Invalid token claims" });
+                }
+
+                int userId = int.Parse(userIdStr);
+                var user = await _context.Users
+                    .Include(u => u.University)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                {
+                    return NotFound(new { success = false, message = "User not found" });
+                }
+
+                var userDto = new UserDto
+                {
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    UserType = user.UserType,
+                    UniversityId = user.UniversityId,
+                    SubjectId1 = user.SubjectId1,
+                    SubjectId2 = user.SubjectId2,
+                    SubjectId3 = user.SubjectId3,
+                    EmpId = user.EmpId,
+                    Fname = user.Fname,
+                    AadharNo = user.AadharNo,
+                    PanNo = user.PanNo,
+                    CollegeId = user.CollegeId,
+                    Experience = user.Experience,
+                    Phone = user.Phone,
+                    Address = user.Address,
+                    ProfileImage = user.ProfileImage,
+                    IsActive = user.IsActive,
+                    IsApproved = user.IsApproved,
+                    University = user.University != null ? new University { UniversityId = user.University.UniversityId, UniversityName = user.University.UniversityName } : null
+                };
+
+                return Ok(userDto);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers([FromQuery] int? universityId = null)
         {
