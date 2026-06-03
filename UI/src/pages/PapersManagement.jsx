@@ -91,9 +91,20 @@ export default function PapersManagement() {
         setSubjects([]);
       }
       
-      await fetchPapers();
+      const loadedPapers = await fetchPapers();
+      
+      // Auto edit if param is set
+      const editParam = searchParams.get("edit");
+      const paperIdParam = searchParams.get("paperId");
+      if (editParam === "true" && paperIdParam && loadedPapers) {
+        const decryptedPaperId = parseInt(decryptId(paperIdParam), 10);
+        const paperToEdit = loadedPapers.find(p => p.paperId === decryptedPaperId);
+        if (paperToEdit) {
+          handleEdit(paperToEdit, projs || []);
+        }
+      }
     } catch (err) {
-      setError("Failed to initialize data");
+      if (typeof setError === "function") setError("Failed to initialize data");
     } finally {
       setLoading(false);
     }
@@ -121,8 +132,9 @@ export default function PapersManagement() {
         }))
       }));
       setPapers(mappedData);
+      return mappedData;
     } catch (err) {
-      setError("Failed to fetch papers");
+      if (typeof setError === "function") setError("Failed to fetch papers");
     }
   };
 
@@ -268,7 +280,7 @@ export default function PapersManagement() {
     }
   };
 
-  const handleEdit = async (paper) => {
+  const handleEdit = async (paper, projectsList = projects) => {
     setFormData({
       paperCode: paper.paperCode,
       paperName: paper.paperName,
@@ -283,7 +295,7 @@ export default function PapersManagement() {
     });
     
     // Fetch subjects for this paper's project's university
-    const project = projects.find(p => p.projectId === paper.projectId);
+    const project = (projectsList && projectsList.length > 0 ? projectsList : projects).find(p => p.projectId === paper.projectId);
     if (project && project.universityId) {
       try {
         const subs = await apiCall(`/subject/University?universityId=${project.universityId}`);

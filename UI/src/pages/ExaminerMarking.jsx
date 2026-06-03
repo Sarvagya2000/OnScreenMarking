@@ -672,7 +672,7 @@ const ExaminerMarking = () => {
 
   const findQuestionByNo = (qNo) => {
     for (const section of sections) {
-      const q = section.questions?.find((q) => q.questionNo === parseInt(qNo));
+      const q = section.questions?.find((q) => String(q.questionNo) === String(qNo));
       if (q) return q;
     }
     return null;

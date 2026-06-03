@@ -32,7 +32,7 @@ namespace API.Models
         public int QuestionId { get; set; }
         public int SectionId { get; set; }
         public Section Section { get; set; }
-        public int QuestionNo { get; set; }
+        public string QuestionNo { get; set; }
         public decimal Marks { get; set; }
         public string Type { get; set; } // MCQ, SA, LA, CS, NP, EXP, RC, WS, LIT, GV
         public bool IsOptional { get; set; }
