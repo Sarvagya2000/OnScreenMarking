@@ -19,6 +19,144 @@ namespace API.Controllers
             _context = context;
         }
 
+        [HttpGet("dashboard-stats")]
+        public async Task<IActionResult> GetProjectDashboardPapers(
+            [FromQuery] int projectId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string search = "",
+            [FromQuery] bool? isActive = null,
+            [FromQuery] string sortField = "",
+            [FromQuery] string sortOrder = "",
+            [FromQuery] string statusFilter = "")
+        {
+            try
+            {
+                var query = _context.Papers
+                    .Where(p => p.ProjectId == projectId)
+                    .AsQueryable();
+
+                if (isActive.HasValue)
+                {
+                    query = query.Where(p => p.IsActive == isActive.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    query = query.Where(p => p.PaperName.Contains(search) || p.PaperCode.Contains(search) || p.CatchNo.Contains(search));
+                }
+
+                // Filter by card status
+                if (!string.IsNullOrWhiteSpace(statusFilter))
+                {
+                    switch (statusFilter.ToLower())
+                    {
+                        case "pending":
+                            query = query.Where(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "pending" || (s.Status != "completed" && !s.Allocations.Any()))) > 0);
+                            break;
+                        case "marking":
+                            query = query.Where(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "allocated" || s.Status == "marking")) > 0);
+                            break;
+                        case "completed":
+                            query = query.Where(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && s.Status == "completed") > 0);
+                            break;
+                        case "unconfigured":
+                            query = query.Where(p => !p.Sections.Any());
+                            break;
+                    }
+                }
+
+                // Sorting
+                if (!string.IsNullOrWhiteSpace(sortField))
+                {
+                    bool isDesc = sortOrder?.ToLower() == "desc";
+                    switch (sortField.ToLower())
+                    {
+                        case "papercode":
+                            query = isDesc ? query.OrderByDescending(p => p.PaperCode) : query.OrderBy(p => p.PaperCode);
+                            break;
+                        case "papername":
+                            query = isDesc ? query.OrderByDescending(p => p.PaperName) : query.OrderBy(p => p.PaperName);
+                            break;
+                        case "catchno":
+                            query = isDesc ? query.OrderByDescending(p => p.CatchNo) : query.OrderBy(p => p.CatchNo);
+                            break;
+                        case "subjectname":
+                            query = isDesc 
+                                ? query.OrderByDescending(p => p.SubjectPapers.Select(sp => sp.Subject.SubName).FirstOrDefault()) 
+                                : query.OrderBy(p => p.SubjectPapers.Select(sp => sp.Subject.SubName).FirstOrDefault());
+                            break;
+                        case "totalscripts":
+                            query = isDesc 
+                                ? query.OrderByDescending(p => _context.Scripts.Count(s => s.PaperId == p.PaperId)) 
+                                : query.OrderBy(p => _context.Scripts.Count(s => s.PaperId == p.PaperId));
+                            break;
+                        case "pendingscripts":
+                            query = isDesc 
+                                ? query.OrderByDescending(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "pending" || (s.Status != "completed" && !s.Allocations.Any())))) 
+                                : query.OrderBy(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "pending" || (s.Status != "completed" && !s.Allocations.Any()))));
+                            break;
+                        case "allocatedscripts":
+                            query = isDesc 
+                                ? query.OrderByDescending(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "allocated" || s.Status == "marking"))) 
+                                : query.OrderBy(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "allocated" || s.Status == "marking")));
+                            break;
+                        case "completedscripts":
+                            query = isDesc 
+                                ? query.OrderByDescending(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && s.Status == "completed")) 
+                                : query.OrderBy(p => _context.Scripts.Count(s => s.PaperId == p.PaperId && s.Status == "completed"));
+                            break;
+                        default:
+                            query = isDesc ? query.OrderByDescending(p => p.PaperNumber) : query.OrderBy(p => p.PaperNumber);
+                            break;
+                    }
+                }
+                else
+                {
+                    query = query.OrderBy(p => p.PaperNumber);
+                }
+
+                var totalCount = await query.CountAsync();
+
+                var items = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => new
+                    {
+                        paperId = p.PaperId,
+                        paperCode = p.PaperCode,
+                        paperName = p.PaperName,
+                        catchNo = p.CatchNo,
+                        maxMarks = p.MaxMarks,
+                        totalQuestions = p.TotalQuestions,
+                        isActive = p.IsActive,
+                        subjectName = p.SubjectPapers.Select(sp => sp.Subject.SubName).FirstOrDefault() ?? "N/A",
+                        subjectId = p.SubjectPapers.Select(sp => sp.SubjectId).FirstOrDefault(),
+                        totalScripts = _context.Scripts.Count(s => s.PaperId == p.PaperId),
+                        completedScripts = _context.Scripts.Count(s => s.PaperId == p.PaperId && s.Status == "completed"),
+                        allocatedScripts = _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "allocated" || s.Status == "marking")),
+                        pendingScripts = _context.Scripts.Count(s => s.PaperId == p.PaperId && (s.Status == "pending" || (s.Status != "completed" && !s.Allocations.Any()))),
+                        isSectionsConfigured = p.Sections.Any()
+                    })
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                return Ok(new
+                {
+                    items = items,
+                    totalCount = totalCount,
+                    page = page,
+                    pageSize = pageSize,
+                    totalPages = totalPages
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PaperDto>>> GetPapers([FromQuery] int? subjectId = null, [FromQuery] int? projectId = null, [FromQuery] int? universityId = null)
         {

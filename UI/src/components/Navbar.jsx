@@ -82,6 +82,9 @@ const Navbar = () => {
       </div>
       
       <div className="flex items-center gap-6 shrink-0">
+        <Link to="/settings" className="p-2 text-white hover:bg-blue-500 rounded-full transition-colors" title="Settings">
+          <Settings size={20} />
+        </Link>
         <button className="p-2 text-white hover:bg-blue-500 rounded-full transition-colors relative">
           <Bell size={20} />
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>

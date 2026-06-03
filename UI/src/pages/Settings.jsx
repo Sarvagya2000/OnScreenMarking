@@ -1,5 +1,6 @@
 import { Save, Bell, Lock, User, Shield, Eye, Zap } from 'lucide-react';
 import { useState } from 'react';
+import message from '../services/messageService';
 
 export default function Settings() {
   const [settings, setSettings] = useState({
@@ -18,7 +19,7 @@ export default function Settings() {
   };
 
   const handleSave = () => {
-    alert('Settings saved successfully!');
+    message.success('Settings saved successfully!');
   };
 
   return (
@@ -30,23 +31,7 @@ export default function Settings() {
 
       <div className="bg-white rounded-lg shadow divide-y">
         {/* Account Settings */}
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <User className="text-blue-500" size={24} />
-            <h2 className="text-xl font-bold text-gray-900">Account Settings</h2>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-              <input
-                type="email"
-                value={settings.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-        </div>
+        
 
         {/* Notifications */}
         <div className="p-6">

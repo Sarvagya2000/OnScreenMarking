@@ -30,6 +30,7 @@ import departmentService from "../services/departmentService";
 import AddUserModal from "../components/AddUserModal";
 import { useTable } from "../services/tableService";
 import TablePagination from "../components/TablePagination";
+import message from '../services/messageService';
 
 export default function UsersManagement() {
   const [searchParams] = useSearchParams();
@@ -40,7 +41,7 @@ export default function UsersManagement() {
   const [activeTab, setActiveTab] = useState("all"); // "all", "pending", "invite"
   const [universities, setUniversities] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [success, setSuccess] = useState("");
+  
   
   // Invitation Form State
   const [inviteEmail, setInviteEmail] = useState("");
@@ -113,6 +114,13 @@ export default function UsersManagement() {
     fetchFn,
     initialParams: { pageSize: 10 }
   });
+
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+      setError('');
+    }
+  }, [error, setError]);
 
   // Calculate quick count of total pending approvals globally
   const [pendingCount, setPendingCount] = useState(0);
@@ -192,12 +200,12 @@ export default function UsersManagement() {
 
   const handleApprove = async (userId) => {
     try {
-      setError("");
-      setSuccess("");
+      
+      
       await userService.approveUser(userId);
-      setSuccess("Examiner approved and activated successfully!");
+      message.success("Examiner approved and activated successfully!");
       refreshUsers();
-      setTimeout(() => setSuccess(''), 3000);
+      
     } catch (err) {
       setError(err.message || "Failed to approve examiner.");
     }
@@ -205,8 +213,8 @@ export default function UsersManagement() {
 
   const handleSendInvite = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    
+    
     setGeneratedLink("");
     setEmailStatus(null);
 
@@ -250,10 +258,10 @@ export default function UsersManagement() {
           setError("Invitation generated, but email failed. Please share link manually.");
         } else {
           setEmailStatus({ sent: true, error: null });
-          setSuccess("Invitation email sent successfully!");
+          message.success("Invitation email sent successfully!");
         }
         refreshUsers();
-        setTimeout(() => setSuccess(''), 3000);
+        
       }
     } catch (err) {
       setError(err.message || "Failed to send invitation.");
@@ -411,18 +419,8 @@ export default function UsersManagement() {
         </div>
 
         {/* Notifications */}
-        {error && (
-          <div className="bg-rose-50 border border-rose-100 text-rose-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in flex items-start gap-2">
-            <AlertCircle size={14} className="shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-        {success && (
-          <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-5 py-4 rounded-2xl text-xs font-semibold shadow-sm animate-fade-in flex items-start gap-2">
-            <CheckCircle size={14} className="shrink-0 mt-0.5" />
-            <span>{success}</span>
-          </div>
-        )}
+        
+        
 
         {/* Tab Content 1: All Users & 2: Pending Approvals */}
         {activeTab !== "invite" && (
@@ -733,12 +731,12 @@ export default function UsersManagement() {
                 departmentId: selectedUser.departmentId,
                 universityId: selectedUser.universityId
               });
-              setSuccess("Role assigned successfully!");
-              setError("");
+              message.success("Role assigned successfully!");
+              
               setShowAssignRoleModal(false);
               setSelectedUser(null);
               refreshUsers();
-              setTimeout(() => setSuccess(''), 3000);
+              
             } catch (err) {
               setError(err.message || "Failed to assign role.");
             }
@@ -751,10 +749,10 @@ export default function UsersManagement() {
         isOpen={showAddUserModal}
         onClose={() => setShowAddUserModal(false)}
         onSuccess={(msg) => {
-          setSuccess(msg);
-          setError("");
+          message.success(msg);
+          
           refreshUsers();
-          setTimeout(() => setSuccess(''), 3000);
+          
         }}
         activeUniversityId={activeUniversityId}
       />

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 're
 import { RotateCcw, Copy, Type, ZoomIn, ZoomOut, Check, X, Undo, Move, Trash2, FileText } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import message from '../services/messageService';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -36,7 +37,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
 
   // Expose PDF generation and uploading to the parent component
   useImperativeHandle(ref, () => ({
-    generateEvaluatedPdf: async () => {
+    generateEvaluatedPdf: async (mId) => {
       try {
         if (pdfPages.length === 0) return "";
         
@@ -89,7 +90,11 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
         formData.append('file', pdfBlob, `evaluated_${scriptId}.pdf`);
 
         const token = localStorage.getItem('token');
-        const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+        const uploadUrl = mId 
+          ? `${import.meta.env.VITE_API_URL}/upload?markingId=${mId}`
+          : `${import.meta.env.VITE_API_URL}/upload`;
+
+        const uploadResponse = await fetch(uploadUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -497,7 +502,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
     
     // Core check: drawing and annotation tools are locked until a question is selected
     if (!currentQuestionId) {
-      alert("Please select a question from the right panel before you begin marking or annotating!");
+      message.warning("Please select a question from the right panel before you begin marking or annotating!");
       return;
     }
 
@@ -641,7 +646,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
     
     // Lock context menu quick annotations if no question is selected
     if (!currentQuestionId) {
-      alert("Please select a question from the right panel before you begin marking or annotating!");
+      message.warning("Please select a question from the right panel before you begin marking or annotating!");
       return;
     }
 
@@ -741,7 +746,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
   const handleCopy = () => {
     if (selectedText) {
       navigator.clipboard.writeText(selectedText);
-      alert('Text copied to clipboard!');
+      message.success('Text copied to clipboard!');
     }
   };
 

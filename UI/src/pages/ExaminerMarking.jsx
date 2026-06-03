@@ -19,6 +19,7 @@ import sectionService from "../services/sectionService";
 import markingService from "../services/markingService";
 import userService from "../services/userService";
 import { useAuth } from "../context/AuthContext";
+import message from "../services/messageService";
 
 // Helper to extract landmarks from an image URL or base64
 const extractImageLandmarks = async (imageSrc, landmarker) => {
@@ -152,7 +153,7 @@ const ExaminerMarking = () => {
       // Ctrl+P or Cmd+P
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
         e.preventDefault();
-        alert("Printing is disabled on this secure marking page.");
+        message.warning("Printing is disabled on this secure marking page.");
         return;
       }
       // Ctrl+S or Cmd+S
@@ -180,7 +181,7 @@ const ExaminerMarking = () => {
           navigator.clipboard.writeText("");
         } catch (err) {}
         
-        alert("Screenshots are strictly prohibited on this secure marking page.");
+        message.error("Screenshots are strictly prohibited on this secure marking page.");
         
         // Restore visibility after a delay
         setTimeout(() => {
@@ -208,7 +209,7 @@ const ExaminerMarking = () => {
           navigator.clipboard.writeText("");
         } catch (err) {}
         
-        alert("Screenshots are strictly prohibited on this secure marking page.");
+        message.error("Screenshots are strictly prohibited on this secure marking page.");
         
         // Restore visibility after a delay
         setTimeout(() => {
@@ -221,7 +222,7 @@ const ExaminerMarking = () => {
 
     const handleCopy = (e) => {
       e.preventDefault();
-      alert("Copying text is disabled for security reasons.");
+      message.warning("Copying text is disabled for security reasons.");
     };
 
     const handleBlur = () => {
@@ -875,7 +876,7 @@ const ExaminerMarking = () => {
       // Compile evaluated PDF copy with annotations intact and upload
       let evaluatedUrl = "";
       if (annotatorRef.current?.generateEvaluatedPdf) {
-        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf();
+        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf(markingId);
       }
 
       // Persist draft total, remarks and evaluated copy path
@@ -907,7 +908,7 @@ const ExaminerMarking = () => {
       // Compile evaluated PDF copy with annotations intact and upload
       let evaluatedUrl = "";
       if (annotatorRef.current?.generateEvaluatedPdf) {
-        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf();
+        evaluatedUrl = await annotatorRef.current.generateEvaluatedPdf(markingId);
       }
 
       // Persist final marks, remarks, and evaluated copy path

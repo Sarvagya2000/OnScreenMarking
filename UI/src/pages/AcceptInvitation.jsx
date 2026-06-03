@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, X, CheckCircle, Mail, Lock, User, Phone, MapPin, Building, BookOpen, AlertCircle, Loader } from 'lucide-react';
 import authService from '../services/authService';
+import message from '../services/messageService';
 
 // Helper to calculate average brightness of canvas image data (0-255)
 const calculateBrightness = (canvas) => {
@@ -71,8 +72,8 @@ const AcceptInvitation = () => {
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [invitationDetails, setInvitationDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  
+  
 
   const [formData, setFormData] = useState({
     name: '',
@@ -117,7 +118,7 @@ const AcceptInvitation = () => {
   useEffect(() => {
     const fetchDetails = async () => {
       if (!token) {
-        setError('Invitation token is missing from the URL. Please verify your invitation link.');
+        message.error('Invitation token is missing from the URL. Please verify your invitation link.');
         setLoadingDetails(false);
         return;
       }
@@ -127,7 +128,7 @@ const AcceptInvitation = () => {
         setInvitationDetails(details);
       } catch (err) {
         console.error('Error fetching invitation:', err);
-        setError(err.message || 'The invitation link is invalid, expired, or has already been used.');
+        message.error(err.message || 'The invitation link is invalid, expired, or has already been used.');
       } finally {
         setLoadingDetails(false);
       }
@@ -179,7 +180,7 @@ const AcceptInvitation = () => {
         else if (!faceValidation.isGoodLighting) errorMsg += "Poor lighting conditions.";
         else if (!faceValidation.isSharp) errorMsg += "Image is blurry. Hold still.";
         
-        setError(errorMsg);
+        message.error(errorMsg);
         return;
       }
     }
@@ -201,7 +202,7 @@ const AcceptInvitation = () => {
 
   const startCamera = async () => {
     try {
-      setError('');
+      
       setBlinkCount(0);
       blinkCountRef.current = 0;
       eyesClosedRef.current = false;
@@ -501,7 +502,7 @@ const AcceptInvitation = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    
 
     if (!formData.name || !formData.password || !formData.confirmPassword) {
       setError('Please fill in all required fields marked with *');
@@ -546,7 +547,7 @@ const AcceptInvitation = () => {
         localStorage.setItem('subjectId1', data.user.subjectId1);
       }
 
-      setSuccess(true);
+      message.success(true);
       
       // Redirect to dashboard after a delay
       setTimeout(() => {
@@ -617,12 +618,7 @@ const AcceptInvitation = () => {
           <p className="text-gray-600 mt-2">Activate your account with CBC On-Screen Marking Portal</p>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-            <p className="text-red-700 text-sm font-medium">{error}</p>
-          </div>
-        )}
+        
 
         {/* Invitation Summary Banner */}
         {invitationDetails && (
