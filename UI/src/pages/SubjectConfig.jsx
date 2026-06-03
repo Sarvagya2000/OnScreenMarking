@@ -16,7 +16,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Filter,
-  Users
+  Users,
+  Edit
 } from 'lucide-react';
 import { subjectService, sectionService, paperService, questionTypeService } from '../services';
 import { useEffect, useState } from 'react';
@@ -238,7 +239,7 @@ export default function SubjectConfig() {
     const generatedQuestions = [];
     for (let i = startQuestion; i <= endQuestion; i++) {
       generatedQuestions.push({
-        questionNo: i,
+        questionNo: i.toString(),
         marks: parseFloat(marksPerQuestion.toFixed(2)),
         type: '',
         isOptional: false,
@@ -247,6 +248,38 @@ export default function SubjectConfig() {
     }
     setQuestions(generatedQuestions);
     setShowQuestionPreview(true);
+  };
+
+  const handleAddQuestion = () => {
+    let nextNo = "";
+    if (questions.length > 0) {
+      const lastNoStr = String(questions[questions.length - 1].questionNo);
+      const match = lastNoStr.match(/^(\d+)(.*)$/);
+      if (match) {
+        const num = parseInt(match[1]) + 1;
+        nextNo = `${num}${match[2]}`;
+      } else {
+        nextNo = (questions.length + 1).toString();
+      }
+    } else {
+      nextNo = (sectionForm.startQuestion || 1).toString();
+    }
+
+    setQuestions(prev => [
+      ...prev,
+      {
+        questionNo: nextNo,
+        marks: prev.length > 0 ? prev[prev.length - 1].marks : 1,
+        type: prev.length > 0 ? prev[prev.length - 1].type : '',
+        isOptional: false,
+        optionalGroupCode: '',
+      }
+    ]);
+    setShowQuestionPreview(true);
+  };
+
+  const handleDeleteQuestionRow = (index) => {
+    setQuestions(prev => prev.filter((_, idx) => idx !== index));
   };
 
   const handleQuestionChange = (index, field, value) => {
@@ -327,7 +360,7 @@ export default function SubjectConfig() {
       setLoading(true);
       const sectionData = {
         ...sectionForm,
-        totalQuestions: sectionForm.endQuestion - sectionForm.startQuestion + 1,
+        totalQuestions: questions.length,
         paperId: selectedPaper.paperId,
         questions: questions.map(q => ({
           ...q,
@@ -577,30 +610,46 @@ export default function SubjectConfig() {
               {papers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {papers.map(paper => (
-                    <button
+                    <div
                       key={paper.paperId}
-                      onClick={() => setSelectedPaper(paper)}
-                      className="group bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 p-8 rounded-3xl transition-all duration-300 text-left relative shadow-sm hover:shadow-md"
+                      className="group bg-white hover:bg-blue-50/30 border border-gray-200 hover:border-blue-300 p-8 rounded-3xl transition-all duration-300 text-left relative shadow-sm hover:shadow-md flex flex-col justify-between"
                     >
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="p-3 bg-gray-100 rounded-2xl group-hover:bg-blue-100 transition-colors">
-                          <FileText className="w-6 h-6 text-gray-500 group-hover:text-blue-600" />
+                      <div>
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="p-3 bg-gray-100 rounded-2xl group-hover:bg-blue-100 transition-colors">
+                            <FileText className="w-6 h-6 text-gray-500 group-hover:text-blue-600" />
+                          </div>
+                          <div className="flex gap-2 items-center">
+                            {userType === 'admin' && (
+                              <Link
+                                to={`/admin/papers?projectId=${encryptedProjectId}&universityId=${projectData?.universityId || ''}&subjectId=${encryptId(selectedSubject?.subjectId || 0)}&edit=true&paperId=${encryptId(paper.paperId)}`}
+                                className="p-2 bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-600 rounded-xl transition-all"
+                                title="Edit Paper Details"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Link>
+                            )}
+                            <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200 uppercase tracking-wider">
+                              {paper.catchNo}
+                            </div>
+                          </div>
                         </div>
-                        <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200 uppercase tracking-wider">
-                          {paper.catchNo}
+                        <div className="font-bold text-gray-900 text-xl mb-2 group-hover:text-blue-700 transition-colors">{paper.paperName}</div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-gray-500 text-sm">
+                            <Award className="w-4 h-4 text-blue-500" />
+                            <span>Max Marks: <span className="text-gray-900 font-bold">{paper.maxMarks}</span></span>
+                          </div>
                         </div>
                       </div>
-                      <div className="font-bold text-gray-900 text-xl mb-2 group-hover:text-blue-700 transition-colors">{paper.paperName}</div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-gray-500 text-sm">
-                          <Award className="w-4 h-4 text-blue-500" />
-                          <span>Max Marks: <span className="text-gray-900 font-bold">{paper.maxMarks}</span></span>
-                        </div>
-                      </div>
-                      <div className="mt-8 flex items-center text-blue-600 text-sm font-bold opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all">
-                        Configure Sections <ChevronRight className="w-4 h-4 ml-1" />
-                      </div>
-                    </button>
+                      <button
+                        onClick={() => setSelectedPaper(paper)}
+                        className="w-full mt-8 flex items-center justify-between bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-md active:scale-95 text-sm"
+                      >
+                        Configure Sections
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -883,8 +932,18 @@ export default function SubjectConfig() {
                     {showQuestionPreview ? (
                       <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden flex flex-col h-[600px]">
                         <div className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex justify-between items-center">
-                          <h4 className="text-sm font-bold text-gray-700 uppercase tracking-tight">Question Configuration</h4>
-                          <span className="text-xs font-medium text-gray-500">{questions.length} Questions in this section</span>
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-sm font-bold text-gray-700 uppercase tracking-tight">Question Configuration</h4>
+                            <span className="text-xs font-medium text-gray-500">({questions.length} Questions)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAddQuestion}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 animate-in fade-in"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Question
+                          </button>
                         </div>
                         <div className="overflow-auto flex-grow custom-scrollbar">
                           <table className="w-full text-left border-collapse">
@@ -895,12 +954,24 @@ export default function SubjectConfig() {
                                 <th className="px-4 py-3 text-gray-600 text-[10px] font-bold uppercase tracking-wider">Type</th>
                                 <th className="px-4 py-3 text-gray-600 text-[10px] font-bold uppercase tracking-wider">Optional</th>
                                 <th className="px-4 py-3 text-gray-600 text-[10px] font-bold uppercase tracking-wider">Group</th>
+                                <th className="px-4 py-3 text-gray-600 text-[10px] font-bold uppercase tracking-wider text-center">Action</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
                               {questions.map((q, idx) => (
                                 <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
-                                  <td className="px-4 py-2 text-gray-900 font-bold text-sm">#{q.questionNo}</td>
+                                  <td className="px-4 py-2 text-gray-900 font-bold text-sm">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-gray-400">#</span>
+                                      <input
+                                        type="text"
+                                        value={q.questionNo}
+                                        onChange={(e) => handleQuestionChange(idx, 'questionNo', e.target.value)}
+                                        className="w-20 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200 text-sm font-bold text-gray-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                                        placeholder="No."
+                                      />
+                                    </div>
+                                  </td>
                                   <td className="px-4 py-2">
                                     <input
                                       type="number"
@@ -941,6 +1012,16 @@ export default function SubjectConfig() {
                                       placeholder="Grp"
                                       disabled={!q.isOptional}
                                     />
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteQuestionRow(idx)}
+                                      className="p-1.5 bg-white hover:bg-red-50 text-red-500 hover:text-red-700 border border-gray-200 hover:border-red-200 rounded-lg transition-all"
+                                      title="Delete Question"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
                                   </td>
                                 </tr>
                               ))}

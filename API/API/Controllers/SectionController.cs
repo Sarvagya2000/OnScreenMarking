@@ -82,16 +82,15 @@ namespace API.Controllers
                     return BadRequest(new { success = false, message = "Paper not found" });
 
                 // Validate start and end question
-                if (sectionDto.StartQuestion <= 0 || sectionDto.EndQuestion <= 0)
-                    return BadRequest(new { success = false, message = "Start and End question numbers must be greater than 0" });
-
-                if (sectionDto.EndQuestion < sectionDto.StartQuestion)
-                    return BadRequest(new { success = false, message = "End question must be greater than or equal to start question" });
-
-                // Calculate total questions from range
-                int calculatedTotalQuestions = sectionDto.EndQuestion - sectionDto.StartQuestion + 1;
-                if (calculatedTotalQuestions != sectionDto.TotalQuestions)
-                    return BadRequest(new { success = false, message = $"Total questions ({sectionDto.TotalQuestions}) does not match the range ({calculatedTotalQuestions})" });
+                // Calculate total questions from range or list
+                int calculatedTotalQuestions = sectionDto.Questions != null && sectionDto.Questions.Count > 0
+                    ? sectionDto.Questions.Count
+                    : (sectionDto.EndQuestion >= sectionDto.StartQuestion ? sectionDto.EndQuestion - sectionDto.StartQuestion + 1 : 0);
+                
+                if (sectionDto.TotalQuestions <= 0)
+                {
+                    sectionDto.TotalQuestions = calculatedTotalQuestions;
+                }
 
                 var section = new Section
                 {
@@ -144,7 +143,7 @@ namespace API.Controllers
                         var question = new Question
                         {
                             SectionId = section.Id,
-                            QuestionNo = i,
+                            QuestionNo = i.ToString(),
                             Marks = marksPerQuestion,
                             Type = "MCQ", // default type
                             IsOptional = false,

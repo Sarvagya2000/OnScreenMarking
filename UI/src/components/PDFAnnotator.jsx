@@ -431,7 +431,7 @@ const PDFAnnotator = forwardRef(({ onAnnotationsChange, currentQuestionId, onNex
       ctx.fillStyle = themeColor;
       
       const markStr = anno.marks !== undefined ? `(${anno.marks})` : '(?)';
-      const qNo = anno.questionId < 10 ? '0' + anno.questionId : anno.questionId;
+      const qNo = !isNaN(anno.questionId) && Number(anno.questionId) < 10 ? '0' + anno.questionId : anno.questionId;
       const secLabel = anno.stepName ? ` | ${anno.stepName}` : '';
       const label = `${markStr} Q${qNo}${secLabel}`;
       const px = anno.x ? anno.x * drawZoom : (anno.points?.[0]?.x * drawZoom);
